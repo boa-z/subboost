@@ -4,9 +4,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const stateMock = vi.hoisted(() => {
   const state = {
     value: {} as Record<string, string>,
+    searchKeyword: "",
+    ruleKindFilter: "all",
     setter: vi.fn((next: React.SetStateAction<Record<string, string>>) => {
       state.value = typeof next === "function" ? next(state.value) : next;
       return state.value;
+    }),
+    setSearchKeyword: vi.fn((next: React.SetStateAction<string>) => {
+      state.searchKeyword =
+        typeof next === "function" ? next(state.searchKeyword) : next;
+      return state.searchKeyword;
+    }),
+    setRuleKindFilter: vi.fn((next: React.SetStateAction<string>) => {
+      state.ruleKindFilter =
+        typeof next === "function" ? next(state.ruleKindFilter) : next;
+      return state.ruleKindFilter;
     }),
   };
   return state;
@@ -25,13 +37,18 @@ vi.mock("react", async (importOriginal) => {
     ...actual,
     useCallback: (fn: unknown) => fn,
     useMemo: (factory: () => unknown) => factory(),
-    useState: () => [stateMock.value, stateMock.setter],
+    useState: (initialValue: unknown) => {
+      if (initialValue === "") return [stateMock.searchKeyword, stateMock.setSearchKeyword];
+      if (initialValue === "all") return [stateMock.ruleKindFilter, stateMock.setRuleKindFilter];
+      return [stateMock.value, stateMock.setter];
+    },
   };
 });
 vi.mock("lucide-react", () => ({
   ArrowDown: () => null,
   ArrowUp: () => null,
   ListOrdered: () => null,
+  Search: () => null,
 }));
 vi.mock("@subboost/ui/components/ui/badge", () => ({
   Badge: (props: any) => React.createElement("span", props, props.children),
@@ -43,6 +60,12 @@ vi.mock("@subboost/ui/components/ui/input", () => ({
 vi.mock("@subboost/ui/components/ui/switch", () => ({
   Switch: (props: any) => React.createElement("button", props),
 }));
+vi.mock("@subboost/ui/components/ui/tabs", () => ({
+  Tabs: (props: any) => React.createElement("div", props, props.children),
+  TabsContent: (props: any) => React.createElement("section", props, props.children),
+  TabsList: (props: any) => React.createElement("div", props, props.children),
+  TabsTrigger: (props: any) => React.createElement("button", props, props.children),
+}));
 vi.mock("@subboost/core/generator/rules", () => ({
   buildGeneratedRuleEntries: mocks.buildGeneratedRuleEntries,
   hasFullRuleOrderKeys: (ruleOrder: string[] | undefined) =>
@@ -51,6 +74,13 @@ vi.mock("@subboost/core/generator/rules", () => ({
 vi.mock("@subboost/ui/store/config-store", () => ({ useConfigStore: () => mocks.store }));
 vi.mock("../section-header", () => ({
   SectionHeader: (props: any) => React.createElement("header", props, props.title, props.badge),
+}));
+vi.mock("./proxy-groups-added-rule-sets", () => ({
+  ProxyGroupsAddedRuleSets: (props: any) =>
+    React.createElement("div", props, "规则集管理"),
+}));
+vi.mock("./proxy-groups-custom-rules", () => ({
+  ProxyGroupsCustomRules: () => React.createElement("div", null, "手动规则管理"),
 }));
 
 import { RulesManagementSection } from "./rules-management-section";
@@ -97,12 +127,16 @@ function renderSection(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
   stateMock.setter.mockClear();
+  stateMock.setSearchKeyword.mockClear();
+  stateMock.setRuleKindFilter.mockClear();
   return RulesManagementSection({ isExpanded: true, onToggle: vi.fn() });
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
   stateMock.value = {};
+  stateMock.searchKeyword = "";
+  stateMock.ruleKindFilter = "all";
   mocks.entries = [
     {
       key: "module:geo",
@@ -145,6 +179,9 @@ describe("RulesManagementSection", () => {
 
     expect(header.props.title).toBe("规则管理");
     expect(collectText(header.props.badge)).toContain("可调 1 / 全部 3");
+    expect(text).toContain("生效顺序");
+    expect(text).toContain("手动规则");
+    expect(text).toContain("规则集");
     expect(text).toContain("默认只能调整自定义规则顺序。");
     expect(text).toContain("系统 GEO");
     expect(text).toContain("自定义规则");
@@ -158,6 +195,62 @@ describe("RulesManagementSection", () => {
         ruleOrder: ["custom:one"],
       })
     );
+  });
+
+  it("filters generated rules by keyword and rule kind", () => {
+    mocks.entries = [
+      {
+        key: "custom-rule:manual",
+        editable: true,
+        summary: "OpenAI",
+        sourceLabel: "自定义规则",
+        target: "AI",
+        noResolve: false,
+        text: "DOMAIN-SUFFIX,openai.com,AI",
+      },
+      {
+        key: "custom-rule-set:google",
+        editable: true,
+        summary: "Google",
+        sourceLabel: "自定义规则集",
+        target: "Search",
+        noResolve: false,
+        text: "RULE-SET,google,Search",
+      },
+      {
+        key: "module:apple",
+        editable: false,
+        summary: "Apple",
+        sourceLabel: "Apple 服务",
+        target: "DIRECT",
+        noResolve: false,
+        text: "RULE-SET,apple,DIRECT",
+      },
+      {
+        key: "special:match",
+        editable: false,
+        summary: "兜底规则",
+        sourceLabel: "系统规则",
+        target: "MATCH",
+        noResolve: false,
+        text: "MATCH,DIRECT",
+      },
+    ];
+
+    stateMock.searchKeyword = "google";
+    let tree = renderSection();
+    let text = collectText(tree);
+    expect(text).toContain("显示 1 / 4");
+    expect(text).toContain("Google");
+    expect(text).not.toContain("OpenAI");
+
+    stateMock.searchKeyword = "";
+    stateMock.ruleKindFilter = "custom-rule-set";
+    tree = renderSection();
+    text = collectText(tree);
+    expect(text).toContain("显示 1 / 4");
+    expect(text).toContain("Google");
+    expect(text).not.toContain("Apple");
   });
 
   it("keeps visible rule tags out of details and keeps order controls row-based", () => {
