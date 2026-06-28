@@ -6,6 +6,7 @@ import {
   deleteTemplate,
   getTemplateDetail,
   listTemplates,
+  updateTemplate,
 } from "@local/lib/template-service";
 import * as itemRoute from "../app/api/templates/[id]/route";
 import * as collectionRoute from "../app/api/templates/route";
@@ -19,6 +20,7 @@ vi.mock("@local/lib/template-service", () => ({
   deleteTemplate: vi.fn(),
   getTemplateDetail: vi.fn(),
   listTemplates: vi.fn(),
+  updateTemplate: vi.fn(),
 }));
 
 const admin = { id: "admin-1", username: "root" };
@@ -48,8 +50,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(getCurrentAdmin).mockResolvedValue(admin);
   vi.mocked(listTemplates).mockResolvedValue([template]);
-  vi.mocked(getTemplateDetail).mockResolvedValue({ ...template, kind: "config", config: { template: "standard" } } as never);
+  vi.mocked(getTemplateDetail).mockResolvedValue({ ...template, kind: "yaml", yaml: "template: standard\n", config: { template: "standard" } } as never);
   vi.mocked(createTemplate).mockResolvedValue(template);
+  vi.mocked(updateTemplate).mockResolvedValue({ ...template, kind: "yaml", yaml: "template: standard\n", config: { template: "standard" } } as never);
   vi.mocked(deleteTemplate).mockResolvedValue(true);
 });
 
@@ -84,7 +87,7 @@ describe("local template routes", () => {
   });
 
   it("creates and deletes private local templates", async () => {
-    const payload = { name: "Local", config: { template: "standard" } };
+    const payload = { name: "Local", yaml: "template: standard\n" };
     const createResponse = await collectionRoute.POST(jsonRequest("http://local.test/api/templates", payload));
     expect(createResponse.status).toBe(201);
     expect(createTemplate).toHaveBeenCalledWith("admin-1", payload);
@@ -141,7 +144,18 @@ describe("local template routes", () => {
 
     expect(response.status).toBe(200);
     expect(getTemplateDetail).toHaveBeenCalledWith("admin-1", "tpl-1");
-    await expect(response.json()).resolves.toMatchObject({ template: { id: "tpl-1", kind: "config" } });
+    await expect(response.json()).resolves.toMatchObject({ template: { id: "tpl-1", kind: "yaml" } });
+  });
+
+  it("updates private template yaml", async () => {
+    const payload = { name: "Local", yaml: "template: full\n" };
+    const response = await itemRoute.PUT(jsonRequest("http://local.test/api/templates/tpl-1", payload), {
+      params: Promise.resolve({ id: "tpl-1" }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(updateTemplate).toHaveBeenCalledWith("admin-1", "tpl-1", payload);
+    await expect(response.json()).resolves.toMatchObject({ template: { id: "tpl-1", kind: "yaml" } });
   });
 
   it("reports missing and failed template detail reads for admins", async () => {
@@ -170,11 +184,14 @@ describe("local template routes", () => {
     vi.mocked(getCurrentAdmin).mockResolvedValue(null);
 
     const createResponse = await collectionRoute.POST(
-      jsonRequest("http://local.test/api/templates", { name: "Local", config: { template: "standard" } })
+      jsonRequest("http://local.test/api/templates", { name: "Local", yaml: "template: standard\n" })
     );
     const deleteResponse = await collectionRoute.DELETE(new Request("http://local.test/api/templates?id=tpl-1"));
+    const updateResponse = await itemRoute.PUT(jsonRequest("http://local.test/api/templates/tpl-1", { yaml: "x" }), {
+      params: Promise.resolve({ id: "tpl-1" }),
+    });
 
-    for (const response of [createResponse, deleteResponse]) {
+    for (const response of [createResponse, deleteResponse, updateResponse]) {
       expect(response.status).toBe(401);
       await expect(response.json()).resolves.toEqual({
         error: "Authentication required.",

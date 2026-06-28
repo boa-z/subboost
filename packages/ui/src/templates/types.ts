@@ -11,6 +11,7 @@ export interface Template {
   isPublic?: boolean;
   proxyGroupCount?: number | null;
   ruleCount?: number | null;
+  kind?: "yaml";
 }
 
 export type TabValue = "default" | "catalog" | "my";

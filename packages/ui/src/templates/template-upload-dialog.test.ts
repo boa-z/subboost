@@ -106,15 +106,16 @@ describe("TemplateUploadDialog", () => {
     const { html, props } = renderDialog();
 
     expect(html).toContain("上传模板");
-    expect(html).toContain("配置模板");
+    expect(html).toContain("当前配置");
+    expect(html).toContain("模板统一保存为 SubBoost YAML");
     expect(html).toContain("私有模板");
     expect(html).toContain("仅自己可见和使用");
     expect(html).toContain("lock-icon");
 
     mocks.inputs[0].onChange({ target: { value: "New template" } });
     mocks.textareas[0].onChange({ target: { value: "New description" } });
-    mocks.buttons.find((button) => button.children === "配置模板").onClick();
-    mocks.buttons.find((button) => button.children === "YAML（开发中）").onClick();
+    mocks.buttons.find((button) => button.children === "当前配置").onClick();
+    mocks.buttons.find((button) => button.children === "YAML").onClick();
     mocks.rawButtons[0].onClick();
     mocks.rawButtons[1].onClick();
     mocks.buttons.at(-2).onClick();
@@ -141,7 +142,7 @@ describe("TemplateUploadDialog", () => {
       showVisibilityControls: false,
     });
 
-    expect(html).toContain("YAML 模板上传开发中。");
+    expect(html).toContain("粘贴或编辑 SubBoost 模板 YAML");
     expect(html).toContain("配置内容（YAML）");
     expect(html).toContain("loader-icon");
     expect(html).not.toContain("公开模板");

@@ -15,6 +15,7 @@ type TemplateListResponse = {
 type TemplateDetailResponse = {
   template?: {
     kind?: string;
+    yaml?: string;
     config?: unknown;
   };
   error?: string;
@@ -43,6 +44,15 @@ const localTemplateAdapter: TemplateLibraryAdapter = {
     await readJsonResponse(
       await fetch("/api/templates", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+    );
+  },
+  updateTemplate: async (id, payload) => {
+    await readJsonResponse(
+      await fetch(`/api/templates/${encodeURIComponent(id)}`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       })

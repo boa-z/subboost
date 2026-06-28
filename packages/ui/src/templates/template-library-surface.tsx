@@ -4,13 +4,23 @@ import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FileCode, Loader2, Plus, Search, Upload } from "lucide-react";
 import { Button } from "@subboost/ui/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@subboost/ui/components/ui/dialog";
 import { Input } from "@subboost/ui/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@subboost/ui/components/ui/tabs";
+import { Textarea } from "@subboost/ui/components/ui/textarea";
 import { confirmDialog } from "@subboost/ui/components/ui/confirm-dialog";
 import { toast } from "@subboost/ui/components/ui/toaster";
 import { useUserStore } from "@subboost/ui/store/user-store";
 import { useConfigStore, type SubBoostTemplateConfig } from "@subboost/ui/store/config-store";
 import { builtinIdToType } from "@subboost/core/templates/builtin";
+import { parseSubBoostTemplateYaml, stringifySubBoostTemplateConfig } from "@subboost/core/templates/config-yaml";
 import { formatDateInBeijing } from "@subboost/core/time/beijing";
 import {
   ProductInteractionAdapterProvider,
@@ -23,15 +33,22 @@ import { TemplateUploadDialog } from "@subboost/ui/templates/template-upload-dia
 
 type TemplateDetail = {
   kind?: string;
+  yaml?: string;
   config?: unknown;
 };
 
 type UploadTemplatePayload = {
   name: string;
   description: string;
-  config: SubBoostTemplateConfig;
+  yaml: string;
   isPublic: boolean;
   isOfficial?: boolean;
+};
+
+type UpdateTemplatePayload = {
+  name?: string;
+  description?: string;
+  yaml: string;
 };
 
 export type TemplateLibraryAdapter = {
@@ -52,6 +69,7 @@ export type TemplateLibraryAdapter = {
   deleteTemplate?: (id: string) => Promise<void>;
   toggleTemplateEngagement?: (id: string) => Promise<{ engagementCount: number; isEngaged: boolean }>;
   uploadTemplate?: (payload: UploadTemplatePayload) => Promise<void>;
+  updateTemplate?: (id: string, payload: UpdateTemplatePayload) => Promise<void>;
 };
 
 type Props = {
@@ -94,7 +112,6 @@ function TemplateLibraryInner({ adapter }: Props) {
     ruleProviderBaseUrl,
     cnIpNoResolve,
     experimentalCnUseCnRuleSet,
-    setTemplate,
     applyTemplateConfig,
     setAppliedTemplateId,
   } = useConfigStore();
@@ -113,6 +130,11 @@ function TemplateLibraryInner({ adapter }: Props) {
   const [isUploading, setIsUploading] = React.useState(false);
   const [uploadMode, setUploadMode] = React.useState<"config" | "yaml">("config");
   const [uploadYamlContent, setUploadYamlContent] = React.useState("");
+  const [editingTemplateId, setEditingTemplateId] = React.useState<string | null>(null);
+  const [editingTemplateName, setEditingTemplateName] = React.useState("");
+  const [editingTemplateDescription, setEditingTemplateDescription] = React.useState("");
+  const [editingYamlContent, setEditingYamlContent] = React.useState("");
+  const [isEditingTemplate, setIsEditingTemplate] = React.useState(false);
   const interactions = adapter.interactions;
 
   React.useEffect(() => {
@@ -165,16 +187,6 @@ function TemplateLibraryInner({ adapter }: Props) {
 
   const handleApplyTemplate = async (templateId: string) => {
     const builtinType = builtinIdToType(templateId);
-    if (builtinType) {
-      setTemplate(builtinType);
-      interactions?.templateSelected?.({
-        source: "builtin",
-        templateType: builtinType,
-      });
-      router.push("/");
-      return;
-    }
-
     setApplyingId(templateId);
     try {
       const tpl = await adapter.loadTemplateDetail(templateId);
@@ -188,12 +200,25 @@ function TemplateLibraryInner({ adapter }: Props) {
         return;
       }
 
-      if (tpl.kind === "config" && tpl.config && typeof tpl.config === "object") {
+      const config =
+        tpl.yaml && typeof tpl.yaml === "string"
+          ? parseSubBoostTemplateYaml(tpl.yaml)
+          : tpl.config && typeof tpl.config === "object"
+            ? { ok: true as const, config: tpl.config as SubBoostTemplateConfig }
+            : null;
+
+      if (config?.ok) {
         setAppliedTemplateId(templateId);
-        applyTemplateConfig(tpl.config as SubBoostTemplateConfig);
+        applyTemplateConfig(config.config);
+        if (builtinType) {
+          interactions?.templateSelected?.({
+            source: "builtin",
+            templateType: builtinType,
+          });
+        }
         interactions?.templateApplied?.({
           source: getInteractionTemplateSource(activeTab),
-          kind: "config",
+          kind: "yaml",
           result: "success",
         });
         router.push("/");
@@ -206,7 +231,7 @@ function TemplateLibraryInner({ adapter }: Props) {
         result: "validationError",
       });
       toast({
-        title: "YAML 模板无法一键应用到配置器。请让作者使用“配置模板（推荐）”重新发布。",
+        title: config && !config.ok ? config.error : "模板内容无效，无法应用。",
         variant: "warning",
       });
     } catch (error) {
@@ -219,6 +244,130 @@ function TemplateLibraryInner({ adapter }: Props) {
       toast({ title: "应用模板失败，请稍后重试", variant: "destructive" });
     } finally {
       setApplyingId(null);
+    }
+  };
+
+  const buildCurrentTemplateYaml = React.useCallback(
+    () =>
+      stringifySubBoostTemplateConfig({
+        schema: "subboost-template-config/v1",
+        template,
+        enabledProxyGroups,
+        hiddenProxyGroups,
+        customProxyGroups,
+        customRuleSets,
+        builtinRuleEdits,
+        customRules,
+        ruleOrder,
+        dialerProxyGroups,
+        proxyGroupNameOverrides,
+        dnsYaml,
+        mixedPort,
+        allowLan,
+        testUrl,
+        testInterval,
+        ruleProviderBaseUrl,
+        cnIpNoResolve,
+        experimentalCnUseCnRuleSet,
+      } satisfies SubBoostTemplateConfig),
+    [
+      allowLan,
+      builtinRuleEdits,
+      cnIpNoResolve,
+      customProxyGroups,
+      customRuleSets,
+      customRules,
+      dialerProxyGroups,
+      dnsYaml,
+      enabledProxyGroups,
+      experimentalCnUseCnRuleSet,
+      hiddenProxyGroups,
+      mixedPort,
+      proxyGroupNameOverrides,
+      ruleOrder,
+      ruleProviderBaseUrl,
+      template,
+      testInterval,
+      testUrl,
+    ],
+  );
+
+  const loadTemplateYaml = React.useCallback(
+    async (templateId: string) => {
+      const tpl = await adapter.loadTemplateDetail(templateId);
+      if (!tpl) throw new Error("模板不存在");
+      if (tpl.yaml && typeof tpl.yaml === "string") return tpl.yaml;
+      if (tpl.config && typeof tpl.config === "object") {
+        return stringifySubBoostTemplateConfig(tpl.config as SubBoostTemplateConfig);
+      }
+      throw new Error("模板内容无效");
+    },
+    [adapter],
+  );
+
+  const downloadYaml = React.useCallback((filename: string, content: string) => {
+    const blob = new Blob([content], { type: "application/yaml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }, []);
+
+  const handleExportTemplate = async (item: Template) => {
+    try {
+      const yaml = await loadTemplateYaml(item.id);
+      downloadYaml(`${item.name || item.id}.subboost-template.yaml`, yaml);
+    } catch (error) {
+      toast({ title: error instanceof Error ? error.message : "导出失败", variant: "destructive" });
+    }
+  };
+
+  const handleOpenEditTemplate = async (item: Template) => {
+    if (!adapter.updateTemplate) return;
+    setIsEditingTemplate(true);
+    try {
+      const tpl = await adapter.loadTemplateDetail(item.id);
+      if (!tpl) throw new Error("模板不存在");
+      const yaml = tpl.yaml && typeof tpl.yaml === "string"
+        ? tpl.yaml
+        : tpl.config && typeof tpl.config === "object"
+          ? stringifySubBoostTemplateConfig(tpl.config as SubBoostTemplateConfig)
+          : "";
+      setEditingTemplateId(item.id);
+      setEditingTemplateName(item.name);
+      setEditingTemplateDescription(item.description);
+      setEditingYamlContent(yaml);
+    } catch (error) {
+      toast({ title: error instanceof Error ? error.message : "加载模板失败", variant: "destructive" });
+    } finally {
+      setIsEditingTemplate(false);
+    }
+  };
+
+  const handleSaveEditedTemplate = async () => {
+    if (!adapter.updateTemplate || !editingTemplateId) return;
+    const parsed = parseSubBoostTemplateYaml(editingYamlContent);
+    if (!parsed.ok) {
+      toast({ title: parsed.error, variant: "warning" });
+      return;
+    }
+
+    setIsEditingTemplate(true);
+    try {
+      await adapter.updateTemplate(editingTemplateId, {
+        name: editingTemplateName,
+        description: editingTemplateDescription,
+        yaml: parsed.yaml,
+      });
+      toast({ title: "模板已保存", variant: "success" });
+      setEditingTemplateId(null);
+      await loadTemplates(activeTab);
+    } catch (error) {
+      toast({ title: error instanceof Error ? error.message : "保存失败", variant: "destructive" });
+    } finally {
+      setIsEditingTemplate(false);
     }
   };
 
@@ -285,8 +434,10 @@ function TemplateLibraryInner({ adapter }: Props) {
 
   const handleUpload = async () => {
     if (!adapter.uploadTemplate || !uploadName.trim()) return;
-    if (uploadMode === "yaml") {
-      toast({ title: "YAML 模板上传开发中", variant: "info" });
+    const yamlContent = uploadMode === "yaml" ? uploadYamlContent : buildCurrentTemplateYaml();
+    const parsed = parseSubBoostTemplateYaml(yamlContent);
+    if (!parsed.ok) {
+      toast({ title: parsed.error, variant: "warning" });
       return;
     }
 
@@ -295,27 +446,7 @@ function TemplateLibraryInner({ adapter }: Props) {
       await adapter.uploadTemplate({
         name: uploadName,
         description: uploadDescription,
-        config: {
-          schema: "subboost-template-config/v1",
-          template,
-          enabledProxyGroups,
-          hiddenProxyGroups,
-          customProxyGroups,
-          customRuleSets,
-          builtinRuleEdits,
-          customRules,
-          ruleOrder,
-          dialerProxyGroups,
-          proxyGroupNameOverrides,
-          dnsYaml,
-          mixedPort,
-          allowLan,
-          testUrl,
-          testInterval,
-          ruleProviderBaseUrl,
-          cnIpNoResolve,
-          experimentalCnUseCnRuleSet,
-        } satisfies SubBoostTemplateConfig,
+        yaml: parsed.yaml,
         isPublic: allowPublicTemplates ? (uploadAsDefault ? true : uploadIsPublic) : false,
         ...(uploadAsDefault ? { isOfficial: true } : {}),
       });
@@ -405,6 +536,12 @@ function TemplateLibraryInner({ adapter }: Props) {
                     engagementLoginRequiredLabel={adapter.labels?.engagementLoginRequired}
                     onEngage={() => void handleEngagement(item.id)}
                     onApply={() => void handleApplyTemplate(item.id)}
+                    onExport={() => void handleExportTemplate(item)}
+                    onEdit={
+                      tab === "my" && adapter.updateTemplate
+                        ? () => void handleOpenEditTemplate(item)
+                        : undefined
+                    }
                     onDelete={() => void handleDeleteTemplate(item.id)}
                     isLoggedIn={!!user}
                     isApplying={applyingId === item.id}
@@ -441,6 +578,45 @@ function TemplateLibraryInner({ adapter }: Props) {
           showVisibilityControls={allowPublicTemplates}
         />
       )}
+
+      <Dialog open={Boolean(editingTemplateId)} onOpenChange={(open) => !open && setEditingTemplateId(null)}>
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>编辑 YAML 模板</DialogTitle>
+            <DialogDescription>
+              模板以 SubBoost YAML 保存；保存前会校验并归一化，不包含节点。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Input
+              value={editingTemplateName}
+              onChange={(event) => setEditingTemplateName(event.target.value)}
+              placeholder="模板名称"
+              maxLength={100}
+            />
+            <Input
+              value={editingTemplateDescription}
+              onChange={(event) => setEditingTemplateDescription(event.target.value)}
+              placeholder="模板描述"
+              maxLength={500}
+            />
+            <Textarea
+              value={editingYamlContent}
+              onChange={(event) => setEditingYamlContent(event.target.value)}
+              className="min-h-[420px] font-mono text-xs"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingTemplateId(null)}>
+              取消
+            </Button>
+            <Button onClick={handleSaveEditedTemplate} disabled={isEditingTemplate || !editingYamlContent.trim()}>
+              {isEditingTemplate && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              保存
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

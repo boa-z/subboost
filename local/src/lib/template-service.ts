@@ -1,14 +1,15 @@
-import { buildDefaultSubBoostTemplateConfig } from "@subboost/core/config/defaults";
 import {
   builtinIdToType,
   getBuiltinTemplateId,
+  getBuiltinTemplateConfig,
+  getBuiltinTemplateYaml,
   getBuiltinTemplateSummaryMetadata,
 } from "@subboost/core/templates/builtin";
 import { getTemplateList } from "@subboost/core/templates";
-import { validateSubBoostTemplateConfig } from "@subboost/core/templates/config-template";
+import { parseSubBoostTemplateYaml } from "@subboost/core/templates/config-yaml";
 import type { SubBoostTemplateConfig } from "@subboost/core/types/template-config";
 import type { TemplateTab } from "@subboost/server-core/templates";
-import { decryptJsonObject, encryptJson } from "./crypto";
+import { decryptText, encryptText } from "./crypto";
 import { prisma } from "./prisma";
 
 type LocalTemplateTab = Extract<TemplateTab, "default" | "my">;
@@ -42,7 +43,8 @@ export type LocalTemplateDetail = {
   id: string;
   name: string;
   description: string;
-  kind: "config";
+  kind: "yaml";
+  yaml: string;
   config: SubBoostTemplateConfig;
 };
 
@@ -66,9 +68,10 @@ function builtinSummaries(): LocalTemplateSummary[] {
 }
 
 function formatLocalTemplate(row: LocalTemplateRow): LocalTemplateSummary {
-  const config = decryptJsonObject(row.encryptedConfig);
-  const proxyGroupCount = Array.isArray(config.enabledProxyGroups) ? config.enabledProxyGroups.length : null;
-  const ruleCount = Array.isArray(config.ruleOrder) ? config.ruleOrder.length : null;
+  const parsed = parseSubBoostTemplateYaml(decryptText(row.encryptedConfig));
+  const config = parsed.ok ? parsed.config : null;
+  const proxyGroupCount = Array.isArray(config?.enabledProxyGroups) ? config.enabledProxyGroups.length : null;
+  const ruleCount = Array.isArray(config?.ruleOrder) ? config.ruleOrder.length : null;
   return {
     id: row.id,
     name: row.name,
@@ -114,8 +117,9 @@ export async function getTemplateDetail(ownerId: string | null, id: string): Pro
       id,
       name: summary?.name || builtinType,
       description: summary?.description || "",
-      kind: "config",
-      config: buildDefaultSubBoostTemplateConfig(builtinType),
+      kind: "yaml",
+      yaml: getBuiltinTemplateYaml(builtinType),
+      config: getBuiltinTemplateConfig(builtinType),
     };
   }
 
@@ -126,8 +130,8 @@ export async function getTemplateDetail(ownerId: string | null, id: string): Pro
     id: row.id,
     name: row.name,
     description: row.description || "",
-    kind: "config",
-    config: decryptJsonObject(row.encryptedConfig) as SubBoostTemplateConfig,
+    kind: "yaml",
+    ...parseStoredTemplateYaml(row.encryptedConfig),
   };
 }
 
@@ -138,18 +142,50 @@ export async function createTemplate(ownerId: string, body: unknown): Promise<Lo
   const name = asString(payload.name);
   if (!name || name.length > 100) throw new Error("Invalid name.");
 
-  const validated = validateSubBoostTemplateConfig(payload.config);
-  if (!validated.ok) throw new Error(validated.error);
+  const yaml = asString(payload.yaml);
+  const parsed = parseSubBoostTemplateYaml(yaml);
+  if (!parsed.ok) throw new Error(parsed.error);
 
   const row = await prisma.localTemplate.create({
     data: {
       ownerId,
       name,
       description: asString(payload.description).slice(0, 500),
-      encryptedConfig: encryptJson(validated.config),
+      encryptedConfig: encryptText(parsed.yaml),
     },
   });
   return formatLocalTemplate(row);
+}
+
+export async function updateTemplate(ownerId: string, id: string, body: unknown): Promise<LocalTemplateDetail | null> {
+  const payload = asRecord(body);
+  if (!payload) throw new Error("Invalid request body.");
+
+  const yaml = asString(payload.yaml);
+  const parsed = parseSubBoostTemplateYaml(yaml);
+  if (!parsed.ok) throw new Error(parsed.error);
+
+  const existing = await prisma.localTemplate.findFirst({ where: { id, ownerId }, select: { id: true } });
+  if (!existing) return null;
+
+  const name = asString(payload.name);
+  const description = asString(payload.description).slice(0, 500);
+  const row = await prisma.localTemplate.update({
+    where: { id: existing.id },
+    data: {
+      ...(name ? { name: name.slice(0, 100) } : {}),
+      description,
+      encryptedConfig: encryptText(parsed.yaml),
+    },
+  });
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description || "",
+    kind: "yaml",
+    yaml: parsed.yaml,
+    config: parsed.config,
+  };
 }
 
 export async function deleteTemplate(ownerId: string, id: string): Promise<boolean> {
@@ -157,4 +193,11 @@ export async function deleteTemplate(ownerId: string, id: string): Promise<boole
   if (!row) return false;
   await prisma.localTemplate.delete({ where: { id: row.id } });
   return true;
+}
+
+function parseStoredTemplateYaml(encryptedConfig: string): { yaml: string; config: SubBoostTemplateConfig } {
+  const storedYaml = decryptText(encryptedConfig);
+  const parsed = parseSubBoostTemplateYaml(storedYaml);
+  if (!parsed.ok) throw new Error(parsed.error);
+  return { yaml: parsed.yaml, config: parsed.config };
 }

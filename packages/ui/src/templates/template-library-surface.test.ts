@@ -68,9 +68,23 @@ vi.mock("@subboost/ui/components/ui/button", () => ({
     return null;
   },
 }));
+vi.mock("@subboost/ui/components/ui/dialog", () => ({
+  Dialog: (props: any) => (props.open ? props.children : null),
+  DialogContent: (props: any) => props.children,
+  DialogDescription: (props: any) => props.children,
+  DialogFooter: (props: any) => props.children,
+  DialogHeader: (props: any) => props.children,
+  DialogTitle: (props: any) => props.children,
+}));
 vi.mock("@subboost/ui/components/ui/input", () => ({
   Input: (props: any) => {
     mocks.captures.input = props;
+    return null;
+  },
+}));
+vi.mock("@subboost/ui/components/ui/textarea", () => ({
+  Textarea: (props: any) => {
+    mocks.captures.textarea = props;
     return null;
   },
 }));
@@ -91,6 +105,13 @@ vi.mock("@subboost/ui/components/ui/toaster", () => ({ toast: mocks.toast }));
 vi.mock("@subboost/ui/store/user-store", () => ({ useUserStore: () => mocks.userStore }));
 vi.mock("@subboost/ui/store/config-store", () => ({ useConfigStore: () => mocks.configStore }));
 vi.mock("@subboost/core/templates/builtin", () => ({ builtinIdToType: (id: string) => (id === "builtin-minimal" ? "minimal" : null) }));
+vi.mock("@subboost/core/templates/config-yaml", () => ({
+  parseSubBoostTemplateYaml: (content: string) =>
+    content.trim()
+      ? { ok: true, yaml: `${content.trim()}\n`, config: { template: "minimal", yaml: content.trim() } }
+      : { ok: false, error: "YAML 模板不能为空" },
+  stringifySubBoostTemplateConfig: (config: any) => `template: ${config.template ?? "minimal"}\n`,
+}));
 vi.mock("@subboost/core/time/beijing", () => ({ formatDateInBeijing: (iso: string) => `fmt:${iso}` }));
 vi.mock("@subboost/ui/product/interactions", () => ({
   ProductInteractionAdapterProvider: (props: any) => props.children,
@@ -162,13 +183,15 @@ function createAdapter(overrides: Record<string, unknown> = {}) {
     uploadSearchParam: true,
     loadTemplates: vi.fn(async () => templates),
     loadTemplateDetail: vi.fn(async (id: string) => {
-      if (id === "tpl-config") return { kind: "config", config: { template: "minimal" } };
-      if (id === "tpl-yaml") return { kind: "yaml", config: "yaml" };
+      if (id === "builtin-minimal") return { kind: "yaml", yaml: "template: minimal\n", config: { template: "minimal" } };
+      if (id === "tpl-config") return { kind: "yaml", yaml: "template: minimal\n", config: { template: "minimal" } };
+      if (id === "tpl-yaml") return { kind: "yaml", yaml: "template: full\n", config: { template: "full" } };
       return null;
     }),
     deleteTemplate: vi.fn(async () => undefined),
     toggleTemplateEngagement: vi.fn(async () => ({ engagementCount: 13, isEngaged: true })),
     uploadTemplate: vi.fn(async () => undefined),
+    updateTemplate: vi.fn(async () => undefined),
     ...overrides,
   } as any;
 }
@@ -234,7 +257,7 @@ describe("TemplateLibrarySurface", () => {
       allowLan: false,
       testUrl: "https://example.com",
       testInterval: 300,
-      ruleProviderBaseUrl: "",
+      ruleProviderBaseUrl: "https://rules.example.com/",
       cnIpNoResolve: false,
       experimentalCnUseCnRuleSet: false,
       setTemplate: vi.fn(),
@@ -275,18 +298,18 @@ describe("TemplateLibrarySurface", () => {
     renderSurface(adapter, { 2: "catalog", 3: templates });
 
     await mocks.captures.cards[0].onApply();
-    expect(mocks.configStore.setTemplate).toHaveBeenCalledWith("minimal");
+    expect(mocks.configStore.setAppliedTemplateId).toHaveBeenCalledWith("builtin-minimal");
+    expect(mocks.configStore.applyTemplateConfig).toHaveBeenCalledWith({ template: "minimal", yaml: "template: minimal" });
     expect(adapter.interactions.templateSelected).toHaveBeenCalledWith({ source: "builtin", templateType: "minimal" });
     expect(mocks.router.push).toHaveBeenCalledWith("/");
 
     await mocks.captures.cards[1].onApply();
     expect(mocks.configStore.setAppliedTemplateId).toHaveBeenCalledWith("tpl-config");
-    expect(mocks.configStore.applyTemplateConfig).toHaveBeenCalledWith({ template: "minimal" });
-    expect(adapter.interactions.templateApplied).toHaveBeenCalledWith({ source: "catalog", kind: "config", result: "success" });
+    expect(mocks.configStore.applyTemplateConfig).toHaveBeenCalledWith({ template: "minimal", yaml: "template: minimal" });
+    expect(adapter.interactions.templateApplied).toHaveBeenCalledWith({ source: "catalog", kind: "yaml", result: "success" });
 
     await mocks.captures.cards[2].onApply();
-    expect(mocks.toast).toHaveBeenCalledWith(expect.objectContaining({ title: expect.stringContaining("YAML 模板无法一键应用"), variant: "warning" }));
-    expect(adapter.interactions.templateApplied).toHaveBeenCalledWith({ source: "catalog", kind: "yaml", result: "validationError" });
+    expect(mocks.configStore.applyTemplateConfig).toHaveBeenCalledWith({ template: "minimal", yaml: "template: full" });
 
     adapter.loadTemplateDetail.mockResolvedValueOnce(null);
     await mocks.captures.cards[1].onApply();
@@ -350,18 +373,14 @@ describe("TemplateLibrarySurface", () => {
         description: "Description",
         isPublic: true,
         isOfficial: true,
-        config: expect.objectContaining({
-          schema: "subboost-template-config/v1",
-          template: "minimal",
-          mixedPort: 7890,
-        }),
+        yaml: expect.stringContaining("template: minimal"),
       })
     );
     expect(mocks.toast).toHaveBeenCalledWith(expect.objectContaining({ title: "模板上传成功！", variant: "success" }));
 
-    renderSurface(adapter, { 6: true, 7: "Yaml", 12: "yaml" });
+    renderSurface(adapter, { 6: true, 7: "Yaml", 12: "yaml", 13: "template: full" });
     await mocks.captures.uploadDialog.onUpload();
-    expect(mocks.toast).toHaveBeenCalledWith(expect.objectContaining({ title: "YAML 模板上传开发中", variant: "info" }));
+    expect(adapter.uploadTemplate).toHaveBeenCalledWith(expect.objectContaining({ name: "Yaml", yaml: "template: full\n" }));
 
     adapter.uploadTemplate.mockRejectedValueOnce(new Error("upload failed"));
     renderSurface(adapter, { 6: true, 7: "Broken", 12: "config" });

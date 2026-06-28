@@ -10,6 +10,8 @@ import {
   ListChecks,
   Loader2,
   Lock,
+  Download as DownloadIcon,
+  Pencil,
   Trash2,
 } from "lucide-react";
 import { Button } from "@subboost/ui/components/ui/button";
@@ -25,6 +27,8 @@ export function TemplateCard({
   engagementLoginRequiredLabel = "登录后可收藏",
   onEngage,
   onApply,
+  onExport,
+  onEdit,
   onDelete,
   isLoggedIn,
   isApplying,
@@ -39,6 +43,8 @@ export function TemplateCard({
   engagementLoginRequiredLabel?: string;
   onEngage: () => void;
   onApply: () => void;
+  onExport?: () => void;
+  onEdit?: () => void;
   onDelete?: () => void;
   isLoggedIn: boolean;
   isApplying: boolean;
@@ -57,6 +63,28 @@ export function TemplateCard({
             <p className="text-sm text-white/50 mt-1 line-clamp-2">{template.description}</p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
+            {onExport && (
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={onExport}
+                title="导出 YAML"
+                className="h-8 w-8 border-white/10"
+              >
+                <DownloadIcon className="h-4 w-4" />
+              </Button>
+            )}
+            {onEdit && (
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={onEdit}
+                title="编辑 YAML"
+                className="h-8 w-8 border-white/10"
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+            )}
             {showDelete && onDelete && (
               <Button
                 variant="outline"

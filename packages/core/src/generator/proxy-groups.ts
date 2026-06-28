@@ -28,6 +28,7 @@ import {
 import { getModuleRuleOrderKey } from "./module-rules";
 import { buildRuleSetUrlFromPath } from "@subboost/core/rules/rule-model";
 import { buildTypedProxyGroup } from "./proxy-group-type";
+import { getBuiltinTemplateEnabledProxyGroups } from "@subboost/core/templates/builtin-yaml";
 
 export { PROXY_GROUP_MODULES };
 export type { ProxyGroupModule, ProxyGroupRule };
@@ -540,16 +541,7 @@ export function generateRuleProviders(options: GenerateOptions): Record<string, 
  * 根据模板获取启用的模块列表
  */
 export function getModulesForTemplate(template: "minimal" | "standard" | "full"): string[] {
-  switch (template) {
-    case "minimal":
-      return ["select", "auto", "ad", "private", "cn", "global", "final"];
-    case "standard":
-      return ["select", "auto", "ad", "private", "cn", "global", "ai", "youtube", "google", "microsoft", "apple", "github", "telegram", "final"];
-    case "full":
-    default:
-      // 排除默认关闭的模块
-      return PROXY_GROUP_MODULES.filter((m) => m.id !== "adult" && m.id !== "gemini" && m.id !== "google-scholar").map((m) => m.id);
-  }
+  return getBuiltinTemplateEnabledProxyGroups(template);
 }
 
 export function getGroupTarget(groupId: string): string {

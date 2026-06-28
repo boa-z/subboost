@@ -73,7 +73,7 @@ export function TemplateUploadDialog({
             上传模板
           </DialogTitle>
           <DialogDescription>
-            推荐使用“配置模板”：仅保存生成策略（不包含节点），可被一键应用到配置器。
+            模板统一保存为 SubBoost YAML，只包含生成策略，不包含节点。
           </DialogDescription>
         </DialogHeader>
 
@@ -108,24 +108,23 @@ export function TemplateUploadDialog({
                 size="sm"
                 onClick={() => onModeChange("config")}
               >
-                配置模板
+                当前配置
               </Button>
               <Button
                 type="button"
                 variant={mode === "yaml" ? "default" : "outline"}
                 size="sm"
                 onClick={() => onModeChange("yaml")}
-                disabled={true}
               >
-                YAML（开发中）
+                YAML
               </Button>
             </div>
             {mode === "config" ? (
               <p className="text-xs text-white/50">
-                将保存你当前的配置器设置（模板/分组/规则/DNS/自定义分流/中转等），不包含节点，可直接“使用”应用到配置器。
+                将当前配置器设置序列化为 YAML 保存，包含分组、规则、DNS、中转等，不包含节点。
               </p>
             ) : (
-              <p className="text-xs text-white/50">YAML 模板上传开发中。</p>
+              <p className="text-xs text-white/50">粘贴或编辑 SubBoost 模板 YAML，上传前会校验并归一化。</p>
             )}
           </div>
 
@@ -167,13 +166,13 @@ export function TemplateUploadDialog({
             <div className="space-y-2">
               <label className="text-sm font-medium">配置内容（YAML）*</label>
               <Textarea
-                placeholder="粘贴您的 YAML 配置内容..."
+                placeholder="schema: subboost-template-config/v1"
                 value={yamlContent}
                 onChange={(event) => onYamlContentChange(event.target.value)}
-                className="min-h-[150px] font-mono text-xs"
+                className="min-h-[260px] font-mono text-xs"
               />
               <p className="text-xs text-white/50">
-                注意：系统会自动移除实际节点信息，只保留配置结构
+                这里是模板 YAML，不是最终 Clash 配置；不要填写 proxies 节点。
               </p>
             </div>
           )}

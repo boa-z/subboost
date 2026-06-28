@@ -2,6 +2,7 @@ import { DEFAULT_DNS_CONFIG } from "@subboost/core/generator/dns";
 import { DEFAULT_RULE_PROVIDER_BASE_URL } from "@subboost/core/rules/metadata";
 import { TEMPLATES } from "@subboost/core/templates";
 import { SUBBOOST_TEMPLATE_CONFIG_SCHEMA } from "@subboost/core/templates/config-template";
+import { stringifySubBoostTemplateConfig } from "@subboost/core/templates/config-yaml";
 import type { ClashConfig, TemplateType, UserConfig } from "@subboost/core/types/config";
 import type { SubBoostTemplateConfig } from "@subboost/core/types/template-config";
 
@@ -102,6 +103,10 @@ export function buildDefaultSubBoostTemplateConfig(type: TemplateType): SubBoost
     testInterval: DEFAULT_SUBBOOST_CONFIG.testInterval,
     ruleProviderBaseUrl: DEFAULT_SUBBOOST_CONFIG.ruleProviderBaseUrl,
   };
+}
+
+export function buildDefaultSubBoostTemplateYaml(type: TemplateType): string {
+  return stringifySubBoostTemplateConfig(buildDefaultSubBoostTemplateConfig(type));
 }
 
 export const DEFAULT_BASE_CONFIG_YAML = `# 基础配置

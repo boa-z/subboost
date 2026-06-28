@@ -1,4 +1,7 @@
 import type { TemplateType } from "@subboost/core/types/config";
+import type { SubBoostTemplateConfig } from "@subboost/core/types/template-config";
+import { parseSubBoostTemplateYaml } from "./config-yaml";
+import { getBuiltinTemplateYamlSource } from "./builtin-yaml";
 
 export const BUILTIN_TEMPLATE_IDS: Record<TemplateType, string> = {
   minimal: "builtin-minimal",
@@ -45,4 +48,14 @@ export function isBuiltinTemplateId(id: string): boolean {
   return builtinIdToType(id) !== null;
 }
 
+export function getBuiltinTemplateYaml(type: TemplateType): string {
+  const parsed = parseSubBoostTemplateYaml(getBuiltinTemplateYamlSource(type));
+  if (!parsed.ok) throw new Error(parsed.error);
+  return parsed.yaml;
+}
 
+export function getBuiltinTemplateConfig(type: TemplateType): SubBoostTemplateConfig {
+  const parsed = parseSubBoostTemplateYaml(getBuiltinTemplateYamlSource(type));
+  if (!parsed.ok) throw new Error(parsed.error);
+  return parsed.config;
+}

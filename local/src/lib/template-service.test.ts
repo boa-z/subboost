@@ -4,16 +4,19 @@ const mocks = vi.hoisted(() => ({
   buildDefaultSubBoostTemplateConfig: vi.fn(),
   builtinIdToType: vi.fn(),
   getBuiltinTemplateId: vi.fn(),
+  getBuiltinTemplateConfig: vi.fn(),
+  getBuiltinTemplateYaml: vi.fn(),
   getBuiltinTemplateSummaryMetadata: vi.fn(),
   getTemplateList: vi.fn(),
-  validateSubBoostTemplateConfig: vi.fn(),
-  decryptJsonObject: vi.fn(),
-  encryptJson: vi.fn(),
+  parseSubBoostTemplateYaml: vi.fn(),
+  decryptText: vi.fn(),
+  encryptText: vi.fn(),
   prisma: {
     localTemplate: {
       findMany: vi.fn(),
       findFirst: vi.fn(),
       create: vi.fn(),
+      update: vi.fn(),
       delete: vi.fn(),
     },
   },
@@ -25,19 +28,21 @@ vi.mock("@subboost/core/config/defaults", () => ({
 vi.mock("@subboost/core/templates/builtin", () => ({
   builtinIdToType: mocks.builtinIdToType,
   getBuiltinTemplateId: mocks.getBuiltinTemplateId,
+  getBuiltinTemplateConfig: mocks.getBuiltinTemplateConfig,
+  getBuiltinTemplateYaml: mocks.getBuiltinTemplateYaml,
   getBuiltinTemplateSummaryMetadata: mocks.getBuiltinTemplateSummaryMetadata,
 }));
 vi.mock("@subboost/core/templates", () => ({ getTemplateList: mocks.getTemplateList }));
-vi.mock("@subboost/core/templates/config-template", () => ({
-  validateSubBoostTemplateConfig: mocks.validateSubBoostTemplateConfig,
+vi.mock("@subboost/core/templates/config-yaml", () => ({
+  parseSubBoostTemplateYaml: mocks.parseSubBoostTemplateYaml,
 }));
 vi.mock("./crypto", () => ({
-  decryptJsonObject: mocks.decryptJsonObject,
-  encryptJson: mocks.encryptJson,
+  decryptText: mocks.decryptText,
+  encryptText: mocks.encryptText,
 }));
 vi.mock("./prisma", () => ({ prisma: mocks.prisma }));
 
-import { createTemplate, deleteTemplate, getTemplateDetail, listTemplates } from "./template-service";
+import { createTemplate, deleteTemplate, getTemplateDetail, listTemplates, updateTemplate } from "./template-service";
 
 function row(overrides: Record<string, unknown> = {}) {
   return {
@@ -72,10 +77,15 @@ describe("local template service", () => {
       if (id === "builtin-minimal") return "minimal";
       return null;
     });
-    mocks.buildDefaultSubBoostTemplateConfig.mockReturnValue({ template: "minimal" });
-    mocks.decryptJsonObject.mockReturnValue({ enabledProxyGroups: ["auto"], ruleOrder: ["MATCH"] });
-    mocks.encryptJson.mockReturnValue("encrypted-new");
-    mocks.validateSubBoostTemplateConfig.mockReturnValue({ ok: true, config: { rules: [] } });
+    mocks.getBuiltinTemplateConfig.mockReturnValue({ template: "minimal" });
+    mocks.getBuiltinTemplateYaml.mockReturnValue("template: minimal\n");
+    mocks.decryptText.mockReturnValue("template: local\n");
+    mocks.encryptText.mockReturnValue("encrypted-new");
+    mocks.parseSubBoostTemplateYaml.mockReturnValue({
+      ok: true,
+      yaml: "template: local\n",
+      config: { enabledProxyGroups: ["auto"], ruleOrder: ["MATCH"] },
+    });
   });
 
   it("lists built-in templates and owner templates", async () => {
@@ -119,7 +129,8 @@ describe("local template service", () => {
       id: "builtin-minimal",
       name: "Minimal",
       description: "small",
-      kind: "config",
+      kind: "yaml",
+      yaml: "template: minimal\n",
       config: { template: "minimal" },
     });
 
@@ -130,7 +141,8 @@ describe("local template service", () => {
       id: "local-1",
       name: "Local Template",
       description: "",
-      kind: "config",
+      kind: "yaml",
+      yaml: "template: local\n",
       config: { enabledProxyGroups: ["auto"], ruleOrder: ["MATCH"] },
     });
 
@@ -142,15 +154,15 @@ describe("local template service", () => {
     await expect(createTemplate("owner-1", null)).rejects.toThrow("Invalid request body.");
     await expect(createTemplate("owner-1", { name: "", config: {} })).rejects.toThrow("Invalid name.");
 
-    mocks.validateSubBoostTemplateConfig.mockReturnValueOnce({ ok: false, error: "bad config" });
-    await expect(createTemplate("owner-1", { name: "Template", config: {} })).rejects.toThrow("bad config");
+    mocks.parseSubBoostTemplateYaml.mockReturnValueOnce({ ok: false, error: "bad yaml" });
+    await expect(createTemplate("owner-1", { name: "Template", yaml: "bad" })).rejects.toThrow("bad yaml");
 
     mocks.prisma.localTemplate.create.mockResolvedValueOnce(row({ name: "Template", description: "saved" }));
     await expect(
       createTemplate("owner-1", {
         name: " Template ",
         description: ` ${"x".repeat(600)} `,
-        config: { rules: [] },
+        yaml: "template: local",
       })
     ).resolves.toEqual(
       expect.objectContaining({
@@ -164,6 +176,41 @@ describe("local template service", () => {
         ownerId: "owner-1",
         name: "Template",
         description: "x".repeat(500),
+        encryptedConfig: "encrypted-new",
+      },
+    });
+  });
+
+  it("updates owner templates as normalized yaml", async () => {
+    await expect(updateTemplate("owner-1", "local-1", null)).rejects.toThrow("Invalid request body.");
+
+    mocks.parseSubBoostTemplateYaml.mockReturnValueOnce({ ok: false, error: "bad yaml" });
+    await expect(updateTemplate("owner-1", "local-1", { yaml: "bad" })).rejects.toThrow("bad yaml");
+
+    mocks.prisma.localTemplate.findFirst.mockResolvedValueOnce(null);
+    await expect(updateTemplate("owner-1", "missing", { yaml: "template: local" })).resolves.toBeNull();
+
+    mocks.prisma.localTemplate.findFirst.mockResolvedValueOnce({ id: "local-1" });
+    mocks.prisma.localTemplate.update.mockResolvedValueOnce(row({ name: "Updated", description: "next" }));
+    await expect(
+      updateTemplate("owner-1", "local-1", {
+        name: " Updated ",
+        description: " next ",
+        yaml: "template: local",
+      })
+    ).resolves.toEqual({
+      id: "local-1",
+      name: "Updated",
+      description: "next",
+      kind: "yaml",
+      yaml: "template: local\n",
+      config: { enabledProxyGroups: ["auto"], ruleOrder: ["MATCH"] },
+    });
+    expect(mocks.prisma.localTemplate.update).toHaveBeenCalledWith({
+      where: { id: "local-1" },
+      data: {
+        name: "Updated",
+        description: "next",
         encryptedConfig: "encrypted-new",
       },
     });
