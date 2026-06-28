@@ -74,6 +74,7 @@ describe("computeGeneratedYamlResult", () => {
             path: "./proxy_providers/url_source-1.yaml",
             "health-check": {
               enable: true,
+              lazy: true,
               url: "https://cp.cloudflare.com/generate_204",
               interval: 600,
             },

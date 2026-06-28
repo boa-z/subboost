@@ -347,6 +347,9 @@ export function useSubscriptionLink({
                     ? { subscriptionUserInfo: sourceSubscriptionUserInfo }
                     : {}),
                   ...(s.type === "url" && s.useProxyProviders ? { useProxyProviders: true } : {}),
+                  ...(s.type === "url" && s.useProxyProviders && s.proxyProvider && typeof s.proxyProvider === "object" && !Array.isArray(s.proxyProvider)
+                    ? { proxyProvider: s.proxyProvider }
+                    : {}),
                   ...(s.type === "url" && typeof s.userinfoUrl === "string" && s.userinfoUrl.trim()
                     ? { userinfoUrl: tryNormalizeSubscriptionUrlInput(s.userinfoUrl) ?? s.userinfoUrl.trim() }
                     : {}),

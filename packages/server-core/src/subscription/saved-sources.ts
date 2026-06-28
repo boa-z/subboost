@@ -12,6 +12,7 @@ export type SavedSource = {
   type: SavedSourceType;
   content: string;
   useProxyProviders?: boolean;
+  proxyProvider?: Record<string, unknown>;
   userinfoUrl?: string;
   userinfoUserAgent?: string;
   subscriptionUserInfo?: SubscriptionUserInfo;
@@ -42,6 +43,10 @@ function normalizeSavedSourceUserInfo(value: unknown): SubscriptionUserInfo | un
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   const normalized = normalizeSubscriptionUserInfo(value as SubscriptionUserInfo);
   return hasSubscriptionUserInfo(normalized) ? normalized : undefined;
+}
+
+function normalizePlainRecord(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object" && !Array.isArray(value) ? { ...(value as Record<string, unknown>) } : undefined;
 }
 
 export function normalizeSavedSourcesForPersistence(
@@ -91,6 +96,9 @@ export function normalizeSavedSourcesForPersistence(
       type,
       content: type === "url" ? normalizeUrlContent(content) : content,
       ...(type === "url" && record.useProxyProviders === true ? { useProxyProviders: true } : {}),
+      ...(type === "url" && record.useProxyProviders === true && normalizePlainRecord(record.proxyProvider)
+        ? { proxyProvider: normalizePlainRecord(record.proxyProvider) }
+        : {}),
       ...(type === "url" && userinfoUrl ? { userinfoUrl: normalizeUrlContent(userinfoUrl) } : {}),
       ...(type === "url" && userinfoUserAgent ? { userinfoUserAgent } : {}),
       ...(subscriptionUserInfo ? { subscriptionUserInfo } : {}),

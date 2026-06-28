@@ -70,6 +70,8 @@ export interface SubscriptionSource {
   nameTemplate?: string;
   // URL 源使用 proxy-providers 模式：不在 SubBoost 内拉取/解析节点，仅在最终配置中写入 proxy-providers 供客户端拉取
   useProxyProviders?: boolean;
+  // proxy-providers 模式的 provider 级 Mihomo 配置
+  proxyProvider?: Record<string, unknown>;
   // 独立的流量/到期元信息 URL（可选）
   userinfoUrl?: string;
   // 获取流量/到期元信息时使用的自定义 User-Agent（可选）

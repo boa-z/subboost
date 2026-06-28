@@ -143,6 +143,7 @@ export function useEditingSubscriptionLoader({
               const tag = (item as any).tag;
               const nameTemplate = (item as any).nameTemplate;
               const useProxyProviders = (item as any).useProxyProviders;
+              const proxyProvider = (item as any).proxyProvider;
               const userinfoUrl = (item as any).userinfoUrl;
               const userinfoUserAgent = (item as any).userinfoUserAgent;
               const subscriptionUserInfo = normalizeSubscriptionUserInfo((item as any).subscriptionUserInfo);
@@ -170,6 +171,10 @@ export function useEditingSubscriptionLoader({
                 nameTemplate: typeof nameTemplate === "string" && nameTemplate.trim() ? nameTemplate.trim() : undefined,
                 subscriptionUserInfo: hasSubscriptionUserInfo(subscriptionUserInfo) ? subscriptionUserInfo : undefined,
                 useProxyProviders: t === "url" && useProxyProviders === true ? true : undefined,
+                proxyProvider:
+                  t === "url" && useProxyProviders === true && proxyProvider && typeof proxyProvider === "object" && !Array.isArray(proxyProvider)
+                    ? proxyProvider
+                    : undefined,
                 userinfoUrl: normalizedUserinfoUrl,
                 userinfoUserAgent:
                   t === "url" && typeof userinfoUserAgent === "string" && userinfoUserAgent.trim()
@@ -191,6 +196,7 @@ export function useEditingSubscriptionLoader({
               nameTemplate?: string;
               subscriptionUserInfo?: SubscriptionUserInfo;
               useProxyProviders?: boolean;
+              proxyProvider?: Record<string, unknown>;
               userinfoUrl?: string;
               userinfoUserAgent?: string;
               lastParsedTag?: string;
