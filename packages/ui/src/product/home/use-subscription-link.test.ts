@@ -131,24 +131,24 @@ describe("useSubscriptionLink", () => {
   });
 
   it("blocks subscription generation until auth and config are ready", () => {
-    useRenderedHook({ authChecked: false }).handleGenerateSubscription("quick");
+    useRenderedHook({ authChecked: false }).handleGenerateSubscription("management");
     expect(mocks.toast).toHaveBeenCalledWith(expect.objectContaining({ title: "正在确认登录状态，请稍后再试" }));
     expect(mocks.bag.interactions.subscriptionLinkIntent).toHaveBeenCalledWith({
-      mode: "quick",
+      mode: "management",
       result: "blockedAuth",
     });
 
     resetHookState();
-    useRenderedHook({ generatedYaml: "" }).handleGenerateSubscription("advanced");
+    useRenderedHook({ generatedYaml: "" }).handleGenerateSubscription("management");
     expect(mocks.toast).toHaveBeenCalledWith(expect.objectContaining({ title: "请先生成配置后再生成订阅链接" }));
     expect(mocks.bag.interactions.subscriptionLinkIntent).toHaveBeenCalledWith({
-      mode: "advanced",
+      mode: "management",
       result: "blockedNoConfig",
     });
   });
 
   it("shows the login action and captures the current draft for guests", () => {
-    useRenderedHook({ user: null }).handleGenerateSubscription("quick");
+    useRenderedHook({ user: null }).handleGenerateSubscription("management");
 
     const loginToast = mocks.toast.mock.calls.at(-1)?.[0] as any;
     loginToast.action.props.onClick();
@@ -167,7 +167,7 @@ describe("useSubscriptionLink", () => {
     };
     let hook = useRenderedHook({ editingSubscription });
 
-    hook.handleGenerateSubscription("advanced");
+    hook.handleGenerateSubscription("management");
     hook = useRenderedHook({ editingSubscription });
 
     expect(hook.subscriptionDialog).toBe(true);
@@ -176,7 +176,7 @@ describe("useSubscriptionLink", () => {
     expect(hook.autoUpdateHours).toBe(12);
     expect(hook.smartNodeMatchingEnabled).toBe(false);
     expect(mocks.bag.interactions.subscriptionLinkIntent).toHaveBeenCalledWith({
-      mode: "advanced",
+      mode: "management",
       result: "opened",
     });
   });
@@ -190,7 +190,7 @@ describe("useSubscriptionLink", () => {
       user: { id: "user-1", saveRequirementSatisfied: false },
     });
 
-    hook.handleGenerateSubscription("quick");
+    hook.handleGenerateSubscription("management");
     hook = useRenderedHook({
       fetchUser,
       subscriptionAdapter: adapter,
@@ -505,7 +505,7 @@ describe("useSubscriptionLink", () => {
     expect(globalThis.navigator.clipboard.writeText).toHaveBeenCalledWith("https://subboost.test/s/token-1");
     expect(mocks.bag.interactions.subscriptionLinkCopied).toHaveBeenCalledWith({
       flow: "create",
-      mode: "quick",
+      mode: "management",
     });
   });
 

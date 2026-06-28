@@ -361,7 +361,7 @@ export function NodeManagementSection({
       clearError();
       clearDraft();
       setListenerPort(nodeName, port);
-      interactions.listenerPortConfigured?.({ mode: "advanced" });
+      interactions.listenerPortConfigured?.({ mode: "management" });
     },
     [interactions, listenerPortDrafts, listenerPorts, setListenerPort]
   );

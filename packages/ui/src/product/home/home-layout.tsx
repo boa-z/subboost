@@ -15,15 +15,12 @@ import {
 import { Button } from "@subboost/ui/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@subboost/ui/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@subboost/ui/components/ui/tabs";
-import { QuickMode } from "@subboost/ui/product/converter/quick-mode";
-import { AdvancedMode } from "@subboost/ui/product/converter/advanced-mode";
+import { ConfigManagement } from "@subboost/ui/product/converter/config-management";
 import { UnsavedPrompt } from "@subboost/ui/product/home/unsaved-prompt";
 import { VisualGraph } from "@subboost/ui/product/preview/visual-graph";
 import { YamlHighlight } from "@subboost/ui/product/preview/diff-highlight";
 import { SubscriptionLinkDialog } from "@subboost/ui/product/home/subscription-link-dialog";
-import { artisticTabsIconClassName, artisticTabsListClassName, artisticTabsTriggerClassName } from "@subboost/ui/components/ui/artistic-nav";
 import { useProductInteractionAdapter, type ProductMode } from "@subboost/ui/product/interactions";
-import { cn } from "@subboost/ui/lib/utils";
 import type { User } from "@subboost/ui/store/user-store";
 import type { AutoUpdateIntervalPolicy } from "@subboost/core/subscription/auto-update-interval";
 
@@ -79,7 +76,7 @@ type Props = {
   subscription: SubscriptionLinkState;
   noticeSlot?: React.ReactNode;
   renderAnnouncement?: (context: {
-    placement: "home" | "advanced";
+    placement: "management";
     authChecked: boolean;
     user: User | null;
   }) => React.ReactNode;
@@ -90,6 +87,7 @@ type Props = {
 
 const DESKTOP_PANEL_MIN_HEIGHT_CLASS = "lg:min-h-[39rem]";
 const DESKTOP_PANEL_CONTENT_MIN_HEIGHT_CLASS = "lg:min-h-[30rem]";
+const MANAGEMENT_MODE: ProductMode = "management";
 
 export function HomeLayout({
   showAiColumn,
@@ -111,24 +109,12 @@ export function HomeLayout({
   templateUploadHref = "/templates?upload=1",
   onTemplateUploadOpen,
 }: Props) {
-  const [configTab, setConfigTab] = React.useState<"quick" | "advanced">(editSubscriptionId ? "advanced" : "quick");
   const interactions = useProductInteractionAdapter();
-
-  React.useEffect(() => {
-    if (!editSubscriptionId) return;
-    setConfigTab("advanced");
-  }, [editSubscriptionId]);
-
-  const handleConfigTabChange = React.useCallback((value: string) => {
-    const nextMode: ProductMode = value === "advanced" ? "advanced" : "quick";
-    setConfigTab(nextMode);
-    interactions.modeChanged?.({ mode: nextMode });
-  }, [interactions]);
 
   return (
     <div className="w-full max-w-[clamp(1200px,95vw,2400px)] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-3 lg:py-5 [@media(max-height:1000px)]:py-3 min-h-[calc(100vh-64px)] flex flex-col">
       {renderAnnouncement?.({
-        placement: configTab === "advanced" ? "advanced" : "home",
+        placement: "management",
         authChecked,
         user,
       })}
@@ -156,90 +142,63 @@ export function HomeLayout({
             showAiColumn ? "lg:col-span-4 xl:col-span-4" : "lg:col-span-6 xl:col-span-6"
           } flex flex-col gap-3 min-h-0 ${DESKTOP_PANEL_MIN_HEIGHT_CLASS}`}
         >
-          <Tabs
-            value={configTab}
-            onValueChange={handleConfigTabChange}
-            className={`flex flex-col lg:flex-1 ${DESKTOP_PANEL_MIN_HEIGHT_CLASS}`}
-          >
-            <Card className={`w-full flex flex-col overflow-visible lg:flex-1 lg:overflow-hidden ${DESKTOP_PANEL_MIN_HEIGHT_CLASS}`}>
-              <CardHeader className="pb-3 flex-shrink-0">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <CardTitle className="text-base lg:text-lg flex items-center gap-2 min-w-0">
-                    <Settings2 className="h-5 w-5 text-indigo-400" />
-                    <span className="shrink-0">配置生成器</span>
-                    {isLoadingEditingSubscription && editSubscriptionId && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-indigo-500/20 bg-indigo-500/10 px-2 py-0.5 text-[10px] text-indigo-100/90">
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                        加载订阅中...
-                      </span>
-                    )}
-                    {editingSubscription && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-indigo-500/20 bg-indigo-500/10 px-2 py-0.5 text-[10px] text-indigo-100/90 min-w-0">
-                        <span className="shrink-0">编辑中</span>
-                        <span className="max-w-[10rem] sm:max-w-[16rem] truncate">
-                          {editingSubscription.name}
-                        </span>
-                      </span>
-                    )}
-                  </CardTitle>
-                  <TabsList className={cn(artisticTabsListClassName, "self-start")}>
-                    <TabsTrigger value="quick" className={cn(artisticTabsTriggerClassName, "min-w-[7rem]")}>
-                      <Zap className={artisticTabsIconClassName} />
-                      快捷模式
-                    </TabsTrigger>
-                    <TabsTrigger value="advanced" className={cn(artisticTabsTriggerClassName, "min-w-[7rem]")}>
-                      <Settings2 className={artisticTabsIconClassName} />
-                      高级模式
-                    </TabsTrigger>
-                  </TabsList>
-                </div>
-              </CardHeader>
-              <CardContent className={`pt-0 relative lg:flex-1 lg:overflow-hidden ${DESKTOP_PANEL_CONTENT_MIN_HEIGHT_CLASS}`}>
-                <TabsContent
-                  value="quick"
-                  className="mt-0 flex flex-col data-[state=inactive]:hidden lg:absolute lg:inset-0 lg:overflow-y-auto custom-scrollbar lg:pr-1"
-                >
-                  <QuickMode />
-                </TabsContent>
-                <TabsContent
-                  value="advanced"
-                  className="mt-0 data-[state=inactive]:hidden lg:absolute lg:inset-0 lg:overflow-y-auto custom-scrollbar lg:pr-1"
-                >
-                  <AdvancedMode />
-                </TabsContent>
-              </CardContent>
-              <CardFooter className="justify-center gap-2 flex-shrink-0 pt-3 flex-row flex-wrap">
-                <Button className="h-10" onClick={() => handleGenerate(configTab)} disabled={configLoading || !hasValidSources}>
-                  {configLoading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      处理中...
-                    </>
-                  ) : (
-                    <>
-                      <Zap className="h-4 w-4 mr-2" />
-                      生成配置
-                    </>
-                  )}
-                </Button>
-                {user && templateUploadHref && (
-                  <Link href={templateUploadHref}>
-                    <Button
-                      variant="outline"
-                      className="h-10 gap-2"
-                      onClick={() => {
-                        onTemplateUploadOpen?.();
-                        interactions.templateUploadOpened?.({ entry: "home" });
-                      }}
-                    >
-                      <Upload className="h-4 w-4" />
-                      上传模板
-                    </Button>
-                  </Link>
+          <Card className={`w-full flex flex-col overflow-visible lg:flex-1 lg:overflow-hidden ${DESKTOP_PANEL_MIN_HEIGHT_CLASS}`}>
+            <CardHeader className="pb-3 flex-shrink-0">
+              <CardTitle className="text-base lg:text-lg flex items-center gap-2 min-w-0">
+                <Settings2 className="h-5 w-5 text-indigo-400" />
+                <span className="shrink-0">配置管理</span>
+                {isLoadingEditingSubscription && editSubscriptionId && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-indigo-500/20 bg-indigo-500/10 px-2 py-0.5 text-[10px] text-indigo-100/90">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    加载订阅中...
+                  </span>
                 )}
-              </CardFooter>
-            </Card>
-          </Tabs>
+                {editingSubscription && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-indigo-500/20 bg-indigo-500/10 px-2 py-0.5 text-[10px] text-indigo-100/90 min-w-0">
+                    <span className="shrink-0">编辑中</span>
+                    <span className="max-w-[10rem] sm:max-w-[16rem] truncate">
+                      {editingSubscription.name}
+                    </span>
+                  </span>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className={`pt-0 relative lg:flex-1 lg:overflow-hidden ${DESKTOP_PANEL_CONTENT_MIN_HEIGHT_CLASS}`}>
+              <div className="flex flex-col lg:absolute lg:inset-0 lg:overflow-y-auto custom-scrollbar lg:pr-1">
+                <ConfigManagement />
+              </div>
+            </CardContent>
+            <CardFooter className="justify-center gap-2 flex-shrink-0 pt-3 flex-row flex-wrap">
+              <Button className="h-10" onClick={() => handleGenerate(MANAGEMENT_MODE)} disabled={configLoading || !hasValidSources}>
+                {configLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    处理中...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="h-4 w-4 mr-2" />
+                    生成配置
+                  </>
+                )}
+              </Button>
+              {user && templateUploadHref && (
+                <Link href={templateUploadHref}>
+                  <Button
+                    variant="outline"
+                    className="h-10 gap-2"
+                    onClick={() => {
+                      onTemplateUploadOpen?.();
+                      interactions.templateUploadOpened?.({ entry: "home" });
+                    }}
+                  >
+                    <Upload className="h-4 w-4" />
+                    上传模板
+                  </Button>
+                </Link>
+              )}
+            </CardFooter>
+          </Card>
         </div>
 
         {/* Middle Column - Preview */}
@@ -317,7 +276,7 @@ export function HomeLayout({
                 <Button
                   className="h-10"
                   disabled={!generatedYaml || Boolean(generatedYamlError)}
-                  onClick={() => handleDownload(configTab)}
+                  onClick={() => handleDownload(MANAGEMENT_MODE)}
                 >
                   <Download className="mr-2 h-4 w-4" />
                   下载配置
@@ -326,7 +285,7 @@ export function HomeLayout({
                   className="h-10"
                   variant="outline"
                   disabled={!generatedYaml || Boolean(generatedYamlError) || !authChecked}
-                  onClick={() => subscription.handleGenerateSubscription(configTab)}
+                  onClick={() => subscription.handleGenerateSubscription(MANAGEMENT_MODE)}
                 >
                   {user && subscription.isEditingExistingSubscription ? "保存订阅" : "生成订阅链接"}
                   <ExternalLink className="ml-2 h-4 w-4" />

@@ -46,9 +46,9 @@ vi.mock("./sections/proxy-groups-section", () => ({ ProxyGroupsSection: section(
 vi.mock("./sections/rules-management-section", () => ({ RulesManagementSection: section("rules") }));
 vi.mock("./sections/dns-section", () => ({ DnsSection: section("dns") }));
 
-import { AdvancedMode } from "./root";
+import { ConfigManagement } from "./root";
 
-describe("AdvancedMode", () => {
+describe("ConfigManagement", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     captures.initialSections = undefined;
@@ -56,8 +56,8 @@ describe("AdvancedMode", () => {
     captures.lastSections = undefined;
   });
 
-  it("renders all advanced sections expanded by default", () => {
-    const html = renderToStaticMarkup(React.createElement(AdvancedMode));
+  it("renders all management sections expanded by default", () => {
+    const html = renderToStaticMarkup(React.createElement(ConfigManagement));
 
     expect(html).toContain("input");
     expect(Object.keys(captures.sections).sort()).toEqual([
@@ -75,7 +75,7 @@ describe("AdvancedMode", () => {
   });
 
   it("toggles sections through the captured callback", () => {
-    renderToStaticMarkup(React.createElement(AdvancedMode));
+    renderToStaticMarkup(React.createElement(ConfigManagement));
 
     captures.sections.input.onToggle();
     expect(captures.stateSetter).toHaveBeenCalled();
@@ -85,7 +85,7 @@ describe("AdvancedMode", () => {
 
   it("expands a collapsed section through the same toggle callback", () => {
     captures.initialSections = new Set(["dns"]);
-    renderToStaticMarkup(React.createElement(AdvancedMode));
+    renderToStaticMarkup(React.createElement(ConfigManagement));
 
     expect(captures.sections.input.isExpanded).toBe(false);
     captures.sections.input.onToggle();

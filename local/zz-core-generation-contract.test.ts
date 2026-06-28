@@ -13,7 +13,7 @@ import {
   normalizeProxyGroupMemberRef,
   resolveProxyGroupMembers,
 } from "@subboost/core/proxy-group-advanced";
-import { withNodeSourceId } from "@subboost/core/subscription/node-source-state";
+import { withNodeSourceMetadata } from "@subboost/core/subscription/node-source-state";
 import type { ParsedNode } from "@subboost/core/types/node";
 
 function node(name: string, patch: Partial<ParsedNode> = {}): ParsedNode {
@@ -63,7 +63,7 @@ describe("local shared core generation contract", () => {
             groupType: "load-balance",
             strategy: "round-robin",
             advanced: {
-              sourceIds: ["source-a"],
+              sourceKeys: ["airport-a"],
               regions: ["us", "other"],
               includeRegex: "Node|DIRECT",
               excludeRegex: "Bad",
@@ -123,8 +123,8 @@ describe("local shared core generation contract", () => {
       },
       {
         nodes: [
-          withNodeSourceId(node("US Node"), "source-a"),
-          withNodeSourceId(node("US Node"), "source-b"),
+          withNodeSourceMetadata(node("US Node"), { sourceId: "source-a", sourceKey: "airport-a" }),
+          withNodeSourceMetadata(node("US Node"), { sourceId: "source-b", sourceKey: "airport-b" }),
           node("余额 | 10GB"),
           node("Bad Node"),
           node("Legacy", { type: "socks4" } as Partial<ParsedNode>),
@@ -158,7 +158,11 @@ describe("local shared core generation contract", () => {
     expect(proxies.find((proxy) => proxy.name === "VLESS")).toMatchObject({ "client-fingerprint": "chrome" });
     expect(proxies.find((proxy) => proxy.name === "US Node")).toMatchObject({ "dialer-proxy": "Chain" });
     expect(proxies.find((proxy) => proxy.name === "US Node (2)")).not.toHaveProperty("dialer-proxy");
-    expect(groups[0]).toMatchObject({ name: "Media", type: "load-balance", proxies: ["DIRECT", "US Node"] });
+    expect(groups[0]).toMatchObject({
+      name: "Media",
+      type: "load-balance",
+      proxies: ["DIRECT", "US Node"],
+    });
     expect(groups[1]).toMatchObject({ name: "Chain", type: "fallback" });
     expect(groups.find((group) => group.name === "🚀 节点选择")?.proxies).toContain("余额 | 10GB");
     expect(groups.find((group) => group.name === "🤖 AI Local")).toMatchObject({
@@ -180,14 +184,14 @@ describe("local shared core generation contract", () => {
     expect(normalizeProxyGroupMemberRef({ kind: "module", id: " " })).toBeNull();
     expect(
       normalizeProxyGroupAdvancedConfig({
-        sourceIds: ["source-a", "source-a", ""],
+        sourceKeys: [" Airport A ", "airport-a", ""],
         regions: ["KR", "bad"],
         groupType: "load-balance",
         strategy: "bad",
         extraMembers: [{ kind: "direct" }, { kind: "direct" }],
       }),
     ).toEqual({
-      sourceIds: ["source-a"],
+      sourceKeys: ["airport-a"],
       regions: ["kr"],
       groupType: "load-balance",
       strategy: "consistent-hashing",
@@ -196,11 +200,14 @@ describe("local shared core generation contract", () => {
 
     const members = resolveProxyGroupMembers({
       defaultProxyNames: ["Korea Node", "DIRECT", "REJECT"],
-      nodes: [withNodeSourceId(node("Korea Node"), "source-a"), withNodeSourceId(node("US Node"), "source-b")],
+      nodes: [
+        withNodeSourceMetadata(node("Korea Node"), { sourceId: "source-a", sourceKey: "airport-a" }),
+        withNodeSourceMetadata(node("US Node"), { sourceId: "source-b", sourceKey: "airport-b" }),
+      ],
       moduleNames: { auto: "Auto" },
       customProxyGroups: [{ id: "custom", name: "Custom", emoji: "", groupType: "select" }],
       advanced: {
-        sourceIds: ["source-a"],
+        sourceKeys: ["airport-a"],
         regions: ["kr"],
         extraMembers: [{ kind: "node", name: "US Node" }, { kind: "custom", id: "custom" }],
         excludedMembers: [{ kind: "reject" }],

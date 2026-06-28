@@ -10,7 +10,6 @@ const mocks = vi.hoisted(() => ({
   subscriptionDialog: undefined as any,
   yamlHighlight: undefined as any,
   interactions: {
-    modeChanged: vi.fn(),
     templateUploadOpened: vi.fn(),
   },
 }));
@@ -83,12 +82,8 @@ vi.mock("@subboost/ui/components/ui/tabs", () => ({
   TabsTrigger: (props: any) => React.createElement("button", props, props.children),
 }));
 
-vi.mock("@subboost/ui/product/converter/quick-mode", () => ({
-  QuickMode: () => React.createElement("div", null, "quick-mode"),
-}));
-
-vi.mock("@subboost/ui/product/converter/advanced-mode", () => ({
-  AdvancedMode: () => React.createElement("div", null, "advanced-mode"),
+vi.mock("@subboost/ui/product/converter/config-management", () => ({
+  ConfigManagement: () => React.createElement("div", null, "config-management"),
 }));
 
 vi.mock("@subboost/ui/product/home/unsaved-prompt", () => ({
@@ -192,13 +187,12 @@ describe("HomeLayout", () => {
     );
 
     expect(renderAnnouncement).toHaveBeenCalledWith({
-      placement: "home",
+      placement: "management",
       authChecked: false,
       user: null,
     });
     expect(html).toContain("SubBoost");
-    expect(html).toContain("quick-mode");
-    expect(html).toContain("advanced-mode");
+    expect(html).toContain("config-management");
     expect(html).toContain("visual-graph");
     expect(html).toContain("# 请先添加订阅或节点");
     expect(html).toContain("AI 助手施工中");
@@ -258,9 +252,7 @@ describe("HomeLayout", () => {
       })
     );
 
-    expect(mocks.tabs[0]).toMatchObject({ value: "advanced" });
-    mocks.tabs[0].onValueChange("quick");
-    expect(mocks.interactions.modeChanged).toHaveBeenCalledWith({ mode: "quick" });
+    expect(mocks.tabs[0]).toMatchObject({ defaultValue: "visual" });
     expect(mocks.yamlHighlight).toMatchObject({ content: "mixed-port: 7890" });
 
     mocks.buttons[0].onClick();
@@ -268,11 +260,11 @@ describe("HomeLayout", () => {
     mocks.buttons[2].onClick();
     mocks.buttons[3].onClick();
 
-    expect(handleGenerate).toHaveBeenCalledWith("advanced");
+    expect(handleGenerate).toHaveBeenCalledWith("management");
     expect(onTemplateUploadOpen).toHaveBeenCalled();
     expect(mocks.interactions.templateUploadOpened).toHaveBeenCalledWith({ entry: "home" });
-    expect(handleDownload).toHaveBeenCalledWith("advanced");
-    expect(subscription.handleGenerateSubscription).toHaveBeenCalledWith("advanced");
+    expect(handleDownload).toHaveBeenCalledWith("management");
+    expect(subscription.handleGenerateSubscription).toHaveBeenCalledWith("management");
     expect(mocks.subscriptionDialog).toMatchObject({
       open: true,
       subscriptionUrl: "https://example.com/sub",

@@ -141,7 +141,7 @@ export function useSubscriptionLink({
   const [isCreatingSubscription, setIsCreatingSubscription] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
   const [saveRequirementDialog, setSaveRequirementDialog] = React.useState(false);
-  const [subscriptionFlowMode, setSubscriptionFlowMode] = React.useState<ProductMode>("quick");
+  const [subscriptionFlowMode, setSubscriptionFlowMode] = React.useState<ProductMode>("management");
   const interactions = useProductInteractionAdapter();
 
   const isEditingExistingSubscription = Boolean(editingSubscription);

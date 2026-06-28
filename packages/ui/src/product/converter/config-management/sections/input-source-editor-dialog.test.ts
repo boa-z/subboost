@@ -122,14 +122,16 @@ describe("InputSourceEditorDialog", () => {
     expect(html).toContain("subscription-userinfo");
 
     mocks.inputs[0].onChange({ target: { value: "B" } });
-    mocks.inputs[1].onChange({ target: { value: "{name}" } });
-    expect(mocks.inputs[2]).toEqual(expect.objectContaining({ value: "A-Node", readOnly: true }));
-    mocks.inputs[3].onChange({ target: { value: "https://next.example/sub" } });
-    mocks.inputs[4].onChange({ target: { value: "https://next.example/userinfo" } });
-    mocks.inputs[5].onChange({ target: { value: "Meta" } });
+    mocks.inputs[1].onChange({ target: { value: "airport-b" } });
+    mocks.inputs[2].onChange({ target: { value: "{name}" } });
+    expect(mocks.inputs[3]).toEqual(expect.objectContaining({ value: "A-Node", readOnly: true }));
+    mocks.inputs[4].onChange({ target: { value: "https://next.example/sub" } });
+    mocks.inputs[5].onChange({ target: { value: "https://next.example/userinfo" } });
+    mocks.inputs[6].onChange({ target: { value: "Meta" } });
     mocks.switches[0].onCheckedChange(true);
 
     expect(handlers.onUpdateMeta).toHaveBeenCalledWith("source-url", { tag: "B" });
+    expect(handlers.onUpdateMeta).toHaveBeenCalledWith("source-url", { sourceKey: "airport-b" });
     expect(handlers.onUpdateMeta).toHaveBeenCalledWith("source-url", { nameTemplate: "{name}" });
     expect(handlers.onUpdateContent).toHaveBeenCalledWith("source-url", "https://next.example/sub");
     expect(handlers.onUpdateMeta).toHaveBeenCalledWith("source-url", { userinfoUrl: "https://next.example/userinfo" });

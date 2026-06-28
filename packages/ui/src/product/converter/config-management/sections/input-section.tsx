@@ -162,7 +162,7 @@ export function InputSection({
     };
     setSources([...sources, newSource]);
     interactions.sourceAdded?.({
-      mode: "advanced",
+      mode: "management",
       sourceType: type,
       sourceCount: sources.length + 1,
     });
@@ -266,7 +266,7 @@ export function InputSection({
           ? "runtimeError"
           : "validationError";
       interactions.sourceImported?.({
-        mode: "advanced",
+        mode: "management",
         sourceType: latestSource.type,
         result,
         sourceCount: latestState.sources.filter((item) => item.content.trim()).length,

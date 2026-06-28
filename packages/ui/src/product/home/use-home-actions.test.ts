@@ -123,10 +123,10 @@ describe("useHomeActions", () => {
     const recordConfigDownload = vi.fn();
     const { handleDownload } = useRenderedHook({ recordConfigDownload });
 
-    handleDownload("quick");
+    handleDownload("management");
     expect(recordConfigDownload).toHaveBeenCalledWith("template-1");
     expect(mocks.bag.interactions.configDownloaded).toHaveBeenCalledWith({
-      mode: "quick",
+      mode: "management",
       nodeCount: 2,
       templateType: "minimal",
     });
@@ -146,8 +146,8 @@ describe("useHomeActions", () => {
   it("skips downloads when YAML is empty or invalid", () => {
     const recordConfigDownload = vi.fn();
 
-    useRenderedHook({ generatedYaml: "", recordConfigDownload }).handleDownload("quick");
-    useRenderedHook({ generatedYamlError: "bad yaml", recordConfigDownload }).handleDownload("advanced");
+    useRenderedHook({ generatedYaml: "", recordConfigDownload }).handleDownload("management");
+    useRenderedHook({ generatedYamlError: "bad yaml", recordConfigDownload }).handleDownload("management");
 
     expect(recordConfigDownload).not.toHaveBeenCalled();
     expect(mocks.bag.interactions.configDownloaded).not.toHaveBeenCalled();
@@ -165,7 +165,7 @@ describe("useHomeActions", () => {
     });
 
     expect(hasValidSources).toBe(true);
-    await handleGenerate("advanced");
+    await handleGenerate("management");
 
     expect(generateConfig).toHaveBeenCalled();
     expect(parseMultipleSources).not.toHaveBeenCalled();
@@ -175,7 +175,7 @@ describe("useHomeActions", () => {
       variant: "info",
     });
     expect(mocks.bag.interactions.configGenerated).toHaveBeenCalledWith(
-      expect.objectContaining({ mode: "advanced", result: "success" })
+      expect.objectContaining({ mode: "management", result: "success" })
     );
   });
 
@@ -197,11 +197,11 @@ describe("useHomeActions", () => {
       generateConfig: vi.fn(() => "after"),
     });
 
-    await handleGenerate("quick");
+    await handleGenerate("management");
 
     expect(mocks.toast).toHaveBeenCalledWith({ title: "已生成配置", variant: "success" });
     expect(mocks.bag.interactions.configGenerated).toHaveBeenCalledWith({
-      mode: "quick",
+      mode: "management",
       result: "success",
       sourceCount: 1,
       nodeCount: 2,
@@ -218,7 +218,7 @@ describe("useHomeActions", () => {
       nodes: [{ name: "Node A" }],
       storeSources: [makeSource({ content: "proxies: []", parsed: true, lastParsedContent: "proxies: []" })],
       generateConfig: vi.fn(() => "same"),
-    }).handleGenerate("advanced");
+    }).handleGenerate("management");
 
     expect(mocks.toast).toHaveBeenCalledWith({ title: "配置未变化", variant: "info" });
   });
@@ -230,7 +230,7 @@ describe("useHomeActions", () => {
       generateConfig: vi.fn(() => "after"),
     });
 
-    await handleGenerate("quick");
+    await handleGenerate("management");
 
     expect(mocks.toast).toHaveBeenCalledWith({
       title: "基础和 DNS 配置有错误",
@@ -238,7 +238,7 @@ describe("useHomeActions", () => {
       variant: "destructive",
     });
     expect(mocks.bag.interactions.configGenerated).toHaveBeenCalledWith(
-      expect.objectContaining({ mode: "quick", result: "validationError" })
+      expect.objectContaining({ mode: "management", result: "validationError" })
     );
   });
 
@@ -262,29 +262,29 @@ describe("useHomeActions", () => {
       clearNodes: vi.fn(),
     });
 
-    await handleGenerate("quick");
+    await handleGenerate("management");
 
     expect(parseMultipleSources).toHaveBeenCalledWith(pendingSources);
     expect(mocks.bag.interactions.sourceImported).toHaveBeenCalledWith(
       expect.objectContaining({
-        mode: "quick",
+        mode: "management",
         result: "success",
         nodeCount: 2,
         usesProxyProvider: true,
       })
     );
     expect(mocks.bag.interactions.sourceImported).toHaveBeenCalledWith(
-      expect.objectContaining({ mode: "quick", result: "runtimeError" })
+      expect.objectContaining({ mode: "management", result: "runtimeError" })
     );
     expect(mocks.bag.interactions.sourceImported).toHaveBeenCalledWith(
-      expect.objectContaining({ mode: "quick", result: "validationError" })
+      expect.objectContaining({ mode: "management", result: "validationError" })
     );
     expect(mocks.toast).toHaveBeenCalledWith({
       title: "已导入并生成配置（2 节点）",
       variant: "success",
     });
     expect(mocks.bag.interactions.configGenerated).toHaveBeenCalledWith(
-      expect.objectContaining({ mode: "quick", result: "success" })
+      expect.objectContaining({ mode: "management", result: "success" })
     );
   });
 
@@ -298,11 +298,11 @@ describe("useHomeActions", () => {
       storeSources: [pendingSource],
       parseMultipleSources: parseWithoutNodes,
       clearNodes: vi.fn(),
-    }).handleGenerate("quick");
+    }).handleGenerate("management");
 
     expect(mocks.toast).toHaveBeenCalledWith({ title: "未解析到有效节点", variant: "warning" });
     expect(mocks.bag.interactions.configGenerated).toHaveBeenCalledWith(
-      expect.objectContaining({ mode: "quick", result: "runtimeError" })
+      expect.objectContaining({ mode: "management", result: "runtimeError" })
     );
 
     const failedImport = vi.fn(async () => {
@@ -313,14 +313,14 @@ describe("useHomeActions", () => {
       useRenderedHook({
         storeSources: [pendingSource],
         parseMultipleSources: failedImport,
-      }).handleGenerate("advanced")
+      }).handleGenerate("management")
     ).rejects.toThrow("fetch failed");
 
     expect(mocks.bag.interactions.sourceImported).toHaveBeenCalledWith(
-      expect.objectContaining({ mode: "advanced", result: "noInput" })
+      expect.objectContaining({ mode: "management", result: "noInput" })
     );
     expect(mocks.bag.interactions.configGenerated).toHaveBeenCalledWith(
-      expect.objectContaining({ mode: "advanced", result: "runtimeError" })
+      expect.objectContaining({ mode: "management", result: "runtimeError" })
     );
   });
 
@@ -333,12 +333,12 @@ describe("useHomeActions", () => {
     });
 
     expect(hasValidSources).toBe(false);
-    await handleGenerate("advanced");
+    await handleGenerate("management");
 
     expect(generateConfig).toHaveBeenCalled();
     expect(mocks.toast).toHaveBeenCalledWith({ title: "配置未变化", variant: "info" });
     expect(mocks.bag.interactions.configGenerated).toHaveBeenCalledWith(
-      expect.objectContaining({ mode: "advanced", result: "noInput" })
+      expect.objectContaining({ mode: "management", result: "noInput" })
     );
   });
 
@@ -351,12 +351,12 @@ describe("useHomeActions", () => {
       generateConfig,
     });
 
-    await handleGenerate("quick");
+    await handleGenerate("management");
 
     expect(generateConfig).toHaveBeenCalled();
     expect(mocks.toast).toHaveBeenCalledWith({ title: "已生成配置", variant: "success" });
     expect(mocks.bag.interactions.configGenerated).toHaveBeenCalledWith(
-      expect.objectContaining({ mode: "quick", result: "success" })
+      expect.objectContaining({ mode: "management", result: "success" })
     );
   });
 });

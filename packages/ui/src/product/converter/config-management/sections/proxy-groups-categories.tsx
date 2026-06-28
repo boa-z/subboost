@@ -304,7 +304,7 @@ export function ProxyGroupsCategories() {
         </div>
         <div className="min-w-0 space-y-1">
           <div className={PROXY_GROUP_SECTION_LABEL_ROW_CLASS}>
-            <label className="text-xs text-amber-300">高级模式</label>
+            <label className="text-xs text-amber-300">精细配置</label>
           </div>
           <div className="flex h-9 w-full items-center justify-center gap-1 rounded-md border border-white/10 bg-white/5 px-2">
             <span className="text-[10px] text-white/65">

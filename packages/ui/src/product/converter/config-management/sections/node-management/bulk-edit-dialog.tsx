@@ -316,7 +316,7 @@ export function NodeManagementBulkEditDialog({
                           patch[nameRulesPlan.matchedNames[i]] = startListenerPort + i;
                         }
                         bulkSetListenerPorts(patch);
-                        interactions.listenerPortConfigured?.({ mode: "advanced" });
+                        interactions.listenerPortConfigured?.({ mode: "management" });
                         onClearListenerPortUiState(nameRulesPlan.matchedNames);
                         toast({
                           title: `已自动填充监听端口 ${nameRulesPlan.matchedNames.length} 个节点`,

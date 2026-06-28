@@ -48,7 +48,7 @@ describe("product provider active adapters", () => {
 
   it("sets and clears the active product interaction adapter through the provider effect", () => {
     const adapter: ProductInteractionAdapter = {
-      modeChanged: vi.fn(),
+      templateUploadOpened: vi.fn(),
     };
 
     ProductInteractionAdapterProvider({ adapter, children: null });

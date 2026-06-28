@@ -242,7 +242,7 @@ describe("NodeManagementSection", () => {
     renderSection({ 5: { Beta: "7893" }, 6: { Beta: "old" } });
     mocks.captures.nodeList.commitListenerPort("Beta");
     expect(mocks.store.setListenerPort).toHaveBeenCalledWith("Beta", 7893);
-    expect(mocks.interactions.listenerPortConfigured).toHaveBeenCalledWith({ mode: "advanced" });
+    expect(mocks.interactions.listenerPortConfigured).toHaveBeenCalledWith({ mode: "management" });
 
     mocks.store.listenerPorts = {};
     renderSection({ 5: {}, 6: {} });

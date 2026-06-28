@@ -18,7 +18,7 @@ import {
 } from "@subboost/ui/product/interactions";
 
 type AnnouncementContext = {
-  placement: "home" | "advanced";
+  placement: "management";
   authChecked: boolean;
   user: User | null;
 };

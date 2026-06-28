@@ -10,7 +10,7 @@ import { RulesManagementSection } from "./sections/rules-management-section";
 
 type SectionKey = "input" | "filter" | "chain" | "proxy" | "rules" | "dns";
 
-export function AdvancedMode() {
+export function ConfigManagement() {
   const [expandedSections, setExpandedSections] = React.useState<Set<SectionKey>>(
     new Set<SectionKey>(["input", "filter", "chain", "proxy", "rules", "dns"])
   );

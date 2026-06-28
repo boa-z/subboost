@@ -386,7 +386,7 @@ describe("advanced mode InputSection", () => {
         { id: "123456", type: "yaml", content: "", nameTemplate: "[{tag}] {name}" },
       ]);
       expect(mocks.interactions.sourceAdded).toHaveBeenCalledWith({
-        mode: "advanced",
+        mode: "management",
         sourceType: "yaml",
         sourceCount: 3,
       });
@@ -508,7 +508,7 @@ describe("advanced mode InputSection", () => {
     await Promise.resolve();
     expect(mocks.store.parseSingleSource).toHaveBeenCalledWith("s1");
     expect(mocks.interactions.sourceImported).toHaveBeenCalledWith({
-      mode: "advanced",
+      mode: "management",
       sourceType: "url",
       result: "success",
       sourceCount: 2,

@@ -221,7 +221,7 @@ describe("NodeManagementBulkEditDialog", () => {
       "[HK] Alpha  One": 42000,
       "Beta  Two": 42001,
     });
-    expect(mocks.interactions.listenerPortConfigured).toHaveBeenCalledWith({ mode: "advanced" });
+    expect(mocks.interactions.listenerPortConfigured).toHaveBeenCalledWith({ mode: "management" });
     expect(props.onClearListenerPortUiState).toHaveBeenCalledWith(["[HK] Alpha  One", "Beta  Two"]);
     expect(mocks.toast).toHaveBeenCalledWith(expect.objectContaining({ title: "已自动填充监听端口 2 个节点", variant: "success" }));
   });
