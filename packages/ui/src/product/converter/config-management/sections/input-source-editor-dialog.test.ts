@@ -77,6 +77,29 @@ const urlSource = {
   userinfoUserAgent: "Clash.Meta",
 };
 
+const providerSource = {
+  ...urlSource,
+  useProxyProviders: true,
+  sourceKey: "airport-a",
+  proxyProvider: {
+    name: "provider-a",
+    type: "http",
+    interval: "1800",
+    proxy: "DIRECT",
+    filter: "(?i)港|hk",
+    "health-check": {
+      enable: true,
+      lazy: true,
+      url: "https://www.gstatic.com/generate_204",
+    },
+    header: {
+      "User-Agent": "mihomo/1.18.3",
+    },
+    override: { udp: true },
+    payload: [],
+  },
+};
+
 function renderDialog(props: Partial<React.ComponentProps<typeof InputSourceEditorDialog>> = {}) {
   mocks.buttons = [];
   mocks.dialogs = [];
@@ -117,7 +140,7 @@ describe("InputSourceEditorDialog", () => {
     const { html, handlers } = renderDialog();
 
     expect(html).toContain("高级编辑：订阅链接");
-    expect(html).toContain("proxy-providers模式");
+    expect(html).toContain("节点拉取方式");
     expect(html).toContain("proxy-providers 模式");
     expect(html).toContain("subscription-userinfo");
 
@@ -128,7 +151,7 @@ describe("InputSourceEditorDialog", () => {
     mocks.inputs[4].onChange({ target: { value: "https://next.example/sub" } });
     mocks.inputs[5].onChange({ target: { value: "https://next.example/userinfo" } });
     mocks.inputs[6].onChange({ target: { value: "Meta" } });
-    mocks.switches[0].onCheckedChange(true);
+    mocks.buttons.find((props) => props.title === "客户端 proxy-provider")?.onClick();
 
     expect(handlers.onUpdateMeta).toHaveBeenCalledWith("source-url", { tag: "B" });
     expect(handlers.onUpdateMeta).toHaveBeenCalledWith("source-url", { sourceKey: "airport-b" });
@@ -137,6 +160,54 @@ describe("InputSourceEditorDialog", () => {
     expect(handlers.onUpdateMeta).toHaveBeenCalledWith("source-url", { userinfoUrl: "https://next.example/userinfo" });
     expect(handlers.onUpdateMeta).toHaveBeenCalledWith("source-url", { userinfoUserAgent: "Meta" });
     expect(handlers.onUpdateMeta).toHaveBeenCalledWith("source-url", { useProxyProviders: true });
+  });
+
+  it("edits structured proxy-provider fields", () => {
+    const { html, handlers } = renderDialog({ source: providerSource as any });
+
+    expect(html).toContain("Proxy Provider 配置");
+    expect(html).toContain("健康检查");
+    expect(html).toContain("override JSON");
+
+    mocks.inputs.find((props) => props.placeholder === "airport-a")?.onChange({ target: { value: "provider-b" } });
+    mocks.inputs.find((props) => props.placeholder === "3600")?.onChange({ target: { value: "900" } });
+    mocks.inputs.find((props) => props.placeholder === "DIRECT")?.onChange({ target: { value: "PROXY" } });
+    mocks.inputs.find((props) => props.placeholder === "(?i)港|hk")?.onChange({ target: { value: "(?i)jp|日本" } });
+    mocks.switches[0].onCheckedChange(false);
+    mocks.textareas[0].onChange({ target: { value: "{\"udp\":false}" } });
+
+    expect(handlers.onUpdateMeta).toHaveBeenCalledWith(
+      "source-url",
+      expect.objectContaining({ proxyProvider: expect.objectContaining({ name: "provider-b" }) })
+    );
+    expect(handlers.onUpdateMeta).toHaveBeenCalledWith(
+      "source-url",
+      expect.objectContaining({ proxyProvider: expect.objectContaining({ interval: "900" }) })
+    );
+    expect(handlers.onUpdateMeta).toHaveBeenCalledWith(
+      "source-url",
+      expect.objectContaining({ proxyProvider: expect.objectContaining({ proxy: "PROXY" }) })
+    );
+    expect(handlers.onUpdateMeta).toHaveBeenCalledWith(
+      "source-url",
+      expect.objectContaining({ proxyProvider: expect.objectContaining({ filter: "(?i)jp|日本" }) })
+    );
+    expect(handlers.onUpdateMeta).toHaveBeenCalledWith(
+      "source-url",
+      expect.objectContaining({
+        proxyProvider: expect.objectContaining({
+          "health-check": expect.objectContaining({ enable: false }),
+        }),
+      })
+    );
+    expect(handlers.onUpdateMeta).toHaveBeenCalledWith(
+      "source-url",
+      expect.objectContaining({
+        proxyProvider: expect.objectContaining({
+          override: { udp: false },
+        }),
+      })
+    );
   });
 
   it("edits yaml and node text sources with a textarea", () => {

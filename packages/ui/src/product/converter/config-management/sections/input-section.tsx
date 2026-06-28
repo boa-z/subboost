@@ -78,6 +78,7 @@ export function InputSection({
     nameTemplate: string;
     sourceKey: string;
     useProxyProviders: boolean;
+    proxyProvider: string;
     userinfoUrl: string;
     userinfoUserAgent: string;
   } | null>(null);
@@ -96,6 +97,7 @@ export function InputSection({
         sourceKey: (expandedSource.sourceKey ?? "").trim(),
         nameTemplate: (expandedSource.nameTemplate ?? "").trim(),
         useProxyProviders: Boolean(expandedSource.useProxyProviders),
+        proxyProvider: JSON.stringify(expandedSource.proxyProvider ?? {}),
         userinfoUrl: (expandedSource.userinfoUrl ?? "").trim(),
         userinfoUserAgent: (expandedSource.userinfoUserAgent ?? "").trim(),
       };
@@ -119,6 +121,7 @@ export function InputSection({
         sourceKey: (expandedSource.sourceKey ?? "").trim(),
         nameTemplate: (expandedSource.nameTemplate ?? "").trim(),
         useProxyProviders: Boolean(expandedSource.useProxyProviders),
+        proxyProvider: JSON.stringify(expandedSource.proxyProvider ?? {}),
         userinfoUrl: (expandedSource.userinfoUrl ?? "").trim(),
         userinfoUserAgent: (expandedSource.userinfoUserAgent ?? "").trim(),
       };
@@ -128,6 +131,7 @@ export function InputSection({
         next.sourceKey !== expandedSourceSnapshot.sourceKey ||
         next.nameTemplate !== expandedSourceSnapshot.nameTemplate ||
         next.useProxyProviders !== expandedSourceSnapshot.useProxyProviders ||
+        next.proxyProvider !== expandedSourceSnapshot.proxyProvider ||
         next.userinfoUrl !== expandedSourceSnapshot.userinfoUrl ||
         next.userinfoUserAgent !== expandedSourceSnapshot.userinfoUserAgent;
       if (changed) void parseSingleSource(expandedSource.id);
@@ -199,6 +203,7 @@ export function InputSection({
           Object.prototype.hasOwnProperty.call(patch, "sourceKey") ||
           Object.prototype.hasOwnProperty.call(patch, "nameTemplate") ||
           Object.prototype.hasOwnProperty.call(patch, "useProxyProviders") ||
+          Object.prototype.hasOwnProperty.call(patch, "proxyProvider") ||
           Object.prototype.hasOwnProperty.call(patch, "userinfoUrl") ||
           Object.prototype.hasOwnProperty.call(patch, "userinfoUserAgent");
 
@@ -241,6 +246,7 @@ export function InputSection({
           type,
           content: "",
           useProxyProviders: type === "url" ? Boolean(s.useProxyProviders) : undefined,
+          proxyProvider: type === "url" ? s.proxyProvider : undefined,
           userinfoUrl: type === "url" ? s.userinfoUrl : undefined,
           userinfoUserAgent: type === "url" ? s.userinfoUserAgent : undefined,
           lastParsedContent: undefined,

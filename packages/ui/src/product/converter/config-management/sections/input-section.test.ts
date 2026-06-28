@@ -180,6 +180,7 @@ const urlSource = {
   sourceKey: "airport-a",
   nameTemplate: "[{tag}] {name}",
   useProxyProviders: false,
+  proxyProvider: undefined,
   userinfoUrl: "https://example.com/userinfo",
   userinfoUserAgent: "clash",
   parsed: true,
@@ -278,7 +279,8 @@ describe("advanced mode InputSection", () => {
     mocks.captures.editor.onUpdateMeta("s1", { nameTemplate: "{name}", useProxyProviders: true });
     mocks.captures.editor.onUpdateMeta("s1", { userinfoUrl: "https://meta.example/info" });
     mocks.captures.editor.onUpdateMeta("s1", { userinfoUserAgent: "mihomo" });
-    expect(mocks.markSourceAsPendingImport).toHaveBeenCalledTimes(3);
+    mocks.captures.editor.onUpdateMeta("s1", { proxyProvider: { name: "provider-a" } });
+    expect(mocks.markSourceAsPendingImport).toHaveBeenCalledTimes(4);
 
     mocks.markSourceAsPendingImport.mockClear();
     mocks.captures.editor.onUpdateMeta("s1", { nodeCount: 9 });
@@ -294,6 +296,7 @@ describe("advanced mode InputSection", () => {
         tag: "OLD",
         nameTemplate: "old",
         useProxyProviders: true,
+        proxyProvider: "{}",
         userinfoUrl: "old",
         userinfoUserAgent: "old",
       },
@@ -313,6 +316,7 @@ describe("advanced mode InputSection", () => {
         sourceKey: "airport-a",
         nameTemplate: "[{tag}] {name}",
         useProxyProviders: false,
+        proxyProvider: "{}",
         userinfoUrl: "https://example.com/userinfo",
         userinfoUserAgent: "clash",
       },
@@ -341,11 +345,12 @@ describe("advanced mode InputSection", () => {
       sourceKey: "airport-a",
       nameTemplate: "[{tag}] {name}",
       useProxyProviders: false,
+      proxyProvider: "{}",
       userinfoUrl: "https://example.com/userinfo",
       userinfoUserAgent: "clash",
     });
 
-    const existingSnapshot = { id: "s1", content: "same", tag: "", sourceKey: "", nameTemplate: "", useProxyProviders: false, userinfoUrl: "", userinfoUserAgent: "" };
+    const existingSnapshot = { id: "s1", content: "same", tag: "", sourceKey: "", nameTemplate: "", useProxyProviders: false, proxyProvider: "{}", userinfoUrl: "", userinfoUserAgent: "" };
     renderSection({ 1: "s1", 2: existingSnapshot });
     expect((stateMock.setters[2] as any).lastValue).toBe(existingSnapshot);
 
@@ -366,6 +371,7 @@ describe("advanced mode InputSection", () => {
       sourceKey: "",
       nameTemplate: "",
       useProxyProviders: false,
+      proxyProvider: "{}",
       userinfoUrl: "",
       userinfoUserAgent: "",
     });
@@ -442,6 +448,7 @@ describe("advanced mode InputSection", () => {
         lastParsedTag: undefined,
         type: "yaml",
         useProxyProviders: undefined,
+        proxyProvider: undefined,
         userinfoUrl: undefined,
         userinfoUserAgent: undefined,
       })
@@ -468,6 +475,7 @@ describe("advanced mode InputSection", () => {
       expect.objectContaining({
         type: "url",
         useProxyProviders: true,
+        proxyProvider: undefined,
         userinfoUrl: "https://info.example",
         userinfoUserAgent: "clash",
       })
