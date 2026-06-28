@@ -234,7 +234,7 @@ describe("ProxyGroupsCategories", () => {
     };
   });
 
-  it("opens only the custom category by default when custom groups exist", () => {
+  it("opens the custom category by default", () => {
     renderCategories();
 
     expect(mocks.captures.customPanelRendered).toBe(true);
@@ -242,7 +242,7 @@ describe("ProxyGroupsCategories", () => {
 
     mocks.store.customProxyGroups = [];
     renderCategories();
-    expect(mocks.captures.customPanelRendered).toBe(false);
+    expect(mocks.captures.customPanelRendered).toBe(true);
     expect(mocks.captures.moduleCards).toHaveLength(0);
   });
 

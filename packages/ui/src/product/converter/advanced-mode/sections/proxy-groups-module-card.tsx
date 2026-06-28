@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import * as Popover from "@radix-ui/react-popover";
-import { Check, ChevronDown, ChevronRight, HelpCircle, Pencil, SlidersHorizontal, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, HelpCircle, Layers, Pencil, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { Button } from "@subboost/ui/components/ui/button";
 import { Input } from "@subboost/ui/components/ui/input";
 import { Switch } from "@subboost/ui/components/ui/switch";
@@ -142,6 +142,8 @@ export function ProxyGroupsModuleCard({
   rulesCountOverride,
   advancedMode = false,
   nodeCount = 0,
+  membersOnly = false,
+  onChangeMembersOnly,
   renderAdvancedContent,
 }: {
   module: ProxyGroupModule;
@@ -192,6 +194,8 @@ export function ProxyGroupsModuleCard({
   rulesCountOverride?: number;
   advancedMode?: boolean;
   nodeCount?: number;
+  membersOnly?: boolean;
+  onChangeMembersOnly?: (next: boolean) => void;
   renderAdvancedContent?: (rulesContent: React.ReactNode, rulesCount: number) => React.ReactNode;
 }) {
   const effectiveRules = getEffectiveModuleRuleItems(module, ruleSetsByTarget, hiddenPresetRuleIds);
@@ -365,6 +369,25 @@ export function ProxyGroupsModuleCard({
               onCheckedChange={onToggleEnabled}
               onClick={(e) => e.stopPropagation()}
             />
+            {onChangeMembersOnly && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "h-7 shrink-0 px-2 text-white/35 hover:text-sky-200",
+                  membersOnly && "bg-sky-500/10 text-sky-200 hover:bg-sky-500/15"
+                )}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onChangeMembersOnly(!membersOnly);
+                }}
+                title={membersOnly ? "成员：仅代理组" : "成员：节点和代理组"}
+                aria-label={membersOnly ? `关闭 ${display.full} 仅代理组成员` : `开启 ${display.full} 仅代理组成员`}
+              >
+                <Layers className="h-3.5 w-3.5" />
+              </Button>
+            )}
             {onChangeGroupType && (
               <ProxyGroupTypeMenu
                 value={effectiveGroupType}

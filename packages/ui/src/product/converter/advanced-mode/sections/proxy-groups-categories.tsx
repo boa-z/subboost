@@ -79,7 +79,7 @@ export function ProxyGroupsCategories() {
 
   const [expandedCategories, setExpandedCategories] = React.useState<
     Set<string>
-  >(new Set(customProxyGroups.length > 0 ? [CUSTOM_CATEGORY_ID] : []));
+  >(new Set([CUSTOM_CATEGORY_ID]));
   const didApplyCustomCategoryDefault = React.useRef(customProxyGroups.length > 0);
   const [editingModuleId, setEditingModuleId] = React.useState<string | null>(
     null,
@@ -604,6 +604,12 @@ export function ProxyGroupsCategories() {
                               }
                               advancedMode={proxyGroupAdvancedModeEnabled}
                               nodeCount={generatedProxyGroupNodeCounts.get(display.full) ?? 0}
+                              membersOnly={advancedConfig.memberMode === "groups-only"}
+                              onChangeMembersOnly={(next) =>
+                                updateProxyGroupAdvanced(module.id, {
+                                  memberMode: next ? "groups-only" : undefined,
+                                })
+                              }
                               renderAdvancedContent={(rulesContent, rulesCount) => (
                                 <ProxyGroupAdvancedPanel
                                   target={{ kind: "module", id: module.id, name: display.full }}

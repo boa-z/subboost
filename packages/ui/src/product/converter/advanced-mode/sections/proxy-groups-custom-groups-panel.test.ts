@@ -22,6 +22,12 @@ vi.mock("react", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react")>();
   return {
     ...actual,
+    createElement: (type: any, props: any, ...children: any[]) => {
+      if (stateMock.enabled && type === "button") {
+        mocks.captures.rawButtons.push(props ?? {});
+      }
+      return actual.createElement(type, props, ...children);
+    },
     useState: (initial: unknown) => {
       if (!stateMock.enabled) return actual.useState(initial);
       const index = stateMock.callIndex++;
@@ -45,12 +51,27 @@ vi.mock("lucide-react", () => ({
   Check: () => null,
   ChevronDown: () => null,
   ChevronRight: () => null,
+  Layers: () => null,
   Pencil: () => null,
   Shuffle: () => null,
   SlidersHorizontal: () => null,
   Trash2: () => null,
   X: () => null,
 }));
+vi.mock("react/jsx-runtime", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react/jsx-runtime")>();
+  const capture = (type: any, props: any, key?: any) => {
+    if (stateMock.enabled && type === "button") {
+      mocks.captures.rawButtons.push(props ?? {});
+    }
+    return actual.jsx(type, props, key);
+  };
+  return {
+    ...actual,
+    jsx: capture,
+    jsxs: capture,
+  };
+});
 vi.mock("@subboost/ui/components/ui/button", () => ({
   Button: (props: any) => {
     mocks.captures.buttons.push(props);
@@ -85,6 +106,10 @@ vi.mock("@subboost/core/rules/custom-routing-rule-sets", () => ({
   extractRuleSetPathFromUrl: (url: string) => url.replace(/^https?:\/\/rules\.example\//, ""),
 }));
 vi.mock("@subboost/core/types/config", () => ({ DEFAULT_LOAD_BALANCE_STRATEGY: "consistent-hashing" }));
+vi.mock("@subboost/core/subscription/node-source-state", () => ({
+  normalizeSourceKey: (value: unknown) =>
+    typeof value === "string" ? value.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "") : "",
+}));
 vi.mock("@subboost/ui/store/config-store", () => {
   const useConfigStore = () => mocks.store;
   (useConfigStore as any).getState = () => mocks.store;
@@ -156,6 +181,7 @@ function renderPanel(overrides: Record<number, unknown> = {}) {
   mocks.captures.ruleRows = [];
   mocks.captures.manualRows = [];
   mocks.captures.moveMenus = [];
+  mocks.captures.rawButtons = [];
   try {
     const html = renderToStaticMarkup(React.createElement(ProxyGroupsCustomGroupsPanel));
     return { html, setters: stateMock.setters };
@@ -174,7 +200,11 @@ describe("ProxyGroupsCustomGroupsPanel", () => {
       hiddenProxyGroups: [],
       proxyGroupNameOverrides: { auto: "Auto" },
       customRules: [{ id: "manual-1", target: "🧩 Custom" }],
-      customProxyGroups: [customGroup, targetGroup],
+      sources: [
+        { id: "source-a", type: "url", tag: "机场 A", sourceKey: "airport-a" },
+        { id: "source-b", type: "yaml", lastParsedTag: "自建 B" },
+      ],
+      customProxyGroups: [{ ...customGroup, memberSource: "filtered-nodes", advanced: { sourceKeys: ["airport-a"] } }, targetGroup],
       customRuleSets: [sourceRule],
       dialerProxyGroups: [{ name: "Dialer" }],
       addCustomProxyGroup: vi.fn(),
@@ -218,6 +248,18 @@ describe("ProxyGroupsCustomGroupsPanel", () => {
     renderPanel({ 1: { emoji: "🧩", name: "Custom" } });
     mocks.captures.buttons.find((props: any) => props.title === "新增").onClick();
     expect(mocks.toast).toHaveBeenCalledWith(expect.objectContaining({ title: "代理组名称已存在，请换一个名称。", variant: "warning" }));
+  });
+
+  it("updates node-pool source filters from the shortcut panel", () => {
+    renderPanel();
+
+    const sourceButton = mocks.captures.rawButtons?.find?.((props: any) => props.title === "自建 B");
+    expect(sourceButton).toBeTruthy();
+    sourceButton.onClick();
+
+    expect(mocks.store.updateCustomProxyGroup).toHaveBeenCalledWith("custom-1", {
+      advanced: { sourceKeys: ["airport-a", "source-b"] },
+    });
   });
 
   it("ignores blank new group names and always adds as node pool select", () => {

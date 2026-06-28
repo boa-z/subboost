@@ -8,8 +8,14 @@ import { toast } from "@subboost/ui/components/ui/toaster";
 import { PROXY_GROUP_MODULES, type ProxyGroupModule } from "@subboost/core/generator/proxy-groups";
 import { resolveProxyGroupModuleName } from "@subboost/core/proxy-group-name";
 import { resolveProxyGroupTargetName } from "@subboost/core/proxy-group-targets";
-import { DEFAULT_LOAD_BALANCE_STRATEGY, type LoadBalanceStrategy, type ProxyGroupGroupType } from "@subboost/core/types/config";
-import { useConfigStore } from "@subboost/ui/store/config-store";
+import { normalizeSourceKey } from "@subboost/core/subscription/node-source-state";
+import {
+  DEFAULT_LOAD_BALANCE_STRATEGY,
+  type CustomProxyGroup,
+  type LoadBalanceStrategy,
+  type ProxyGroupGroupType,
+} from "@subboost/core/types/config";
+import { useConfigStore, type SubscriptionSource } from "@subboost/ui/store/config-store";
 import { useProductInteractionAdapter } from "@subboost/ui/product/interactions";
 import {
   buildManualRuleTargets,
@@ -38,6 +44,43 @@ import {
 } from "./proxy-group-name-editor";
 import { ProxyGroupsModuleCard } from "./proxy-groups-module-card";
 
+function normalizeStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const item of value) {
+    if (typeof item !== "string") continue;
+    const normalized = item.trim();
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    out.push(normalized);
+  }
+  return out;
+}
+
+function toggleValue(list: string[], value: string): string[] {
+  if (!value) return list;
+  return list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
+}
+
+function buildSourceOptions(sources: SubscriptionSource[]): Array<{ key: string; label: string }> {
+  const out: Array<{ key: string; label: string }> = [];
+  const seen = new Set<string>();
+  sources.forEach((source, index) => {
+    const key = normalizeSourceKey(source.sourceKey) || normalizeSourceKey(source.tag) || normalizeSourceKey(source.id);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    out.push({
+      key,
+      label:
+        source.tag?.trim() ||
+        source.lastParsedTag?.trim() ||
+        `#${index + 1} ${source.type === "url" ? "订阅链接" : source.type === "yaml" ? "YAML 配置" : "节点链接"}`,
+    });
+  });
+  return out;
+}
+
 export function ProxyGroupsCustomGroupsPanel({
   advancedMode = false,
   nodeCounts,
@@ -48,6 +91,7 @@ export function ProxyGroupsCustomGroupsPanel({
   const {
     enabledProxyGroups,
     hiddenProxyGroups,
+    sources = [],
     proxyGroupNameOverrides = {},
     customRules = [],
     customRuleSets = [],
@@ -72,6 +116,28 @@ export function ProxyGroupsCustomGroupsPanel({
   const [editingCustomGroupName, setEditingCustomGroupName] = React.useState("");
   const [editingCustomGroupDescription, setEditingCustomGroupDescription] = React.useState("");
   const interactions = useProductInteractionAdapter();
+
+  const sourceOptions = React.useMemo(() => buildSourceOptions(sources), [sources]);
+  const nodePoolGroups = React.useMemo(
+    () => customProxyGroups.filter((group) => group.memberSource === "filtered-nodes"),
+    [customProxyGroups],
+  );
+
+  const patchCustomGroupAdvanced = React.useCallback(
+    (groupId: string, patch: NonNullable<CustomProxyGroup["advanced"]>) => {
+      const group = customProxyGroups.find((item) => item.id === groupId);
+      if (!group) return;
+      const nextAdvanced = { ...(group.advanced || {}), ...patch };
+      if (
+        Object.prototype.hasOwnProperty.call(patch, "memberMode") &&
+        patch.memberMode === undefined
+      ) {
+        delete nextAdvanced.memberMode;
+      }
+      updateCustomProxyGroup(groupId, { advanced: nextAdvanced });
+    },
+    [customProxyGroups, updateCustomProxyGroup],
+  );
 
   const getAllGroupNamesForUniqCheck = React.useCallback(() => {
     const names: string[] = [];
@@ -233,6 +299,51 @@ export function ProxyGroupsCustomGroupsPanel({
           <Check className="h-3.5 w-3.5" />
         </Button>
       </div>
+
+      {nodePoolGroups.length > 0 && sourceOptions.length > 0 && (
+        <div className="rounded border border-white/10 bg-white/[0.035] p-2">
+          <div className="mb-2 flex min-w-0 items-center justify-between gap-2">
+            <div className="text-[11px] font-medium text-white/60">节点池来源</div>
+            <div className="text-[10px] text-white/35">{nodePoolGroups.length} 个节点池</div>
+          </div>
+          <div className="space-y-1.5">
+            {nodePoolGroups.map((group) => {
+              const selectedKeys = normalizeStringList(group.advanced?.sourceKeys);
+              return (
+                <div key={group.id} className="grid min-w-0 gap-1.5 md:grid-cols-[minmax(7rem,0.9fr)_minmax(0,2fr)] md:items-center">
+                  <div className="min-w-0 truncate text-[11px] text-white/70" title={group.name}>
+                    {group.name}
+                  </div>
+                  <div className="flex min-w-0 flex-wrap gap-1">
+                    {sourceOptions.map((source) => {
+                      const checked = selectedKeys.includes(source.key);
+                      return (
+                        <button
+                          key={`${group.id}:${source.key}`}
+                          type="button"
+                          className={`h-6 max-w-full rounded border px-2 text-[10px] transition-colors ${
+                            checked
+                              ? "border-sky-400/50 bg-sky-500/15 text-sky-100"
+                              : "border-white/10 bg-white/5 text-white/45 hover:bg-white/10 hover:text-white/75"
+                          }`}
+                          onClick={() =>
+                            patchCustomGroupAdvanced(group.id, {
+                              sourceKeys: toggleValue(selectedKeys, source.key),
+                            })
+                          }
+                          title={source.label}
+                        >
+                          <span className="block max-w-[8rem] truncate">{source.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* 自定义分组列表 */}
       {customProxyGroups.length === 0 ? (
@@ -428,22 +539,17 @@ export function ProxyGroupsCustomGroupsPanel({
                 rulesCountOverride={totalRules}
                 advancedMode={advancedMode}
                 nodeCount={nodeCount}
+                membersOnly={group.advanced?.memberMode === "groups-only"}
+                onChangeMembersOnly={(next) =>
+                  patchCustomGroupAdvanced(group.id, {
+                    memberMode: next ? "groups-only" : undefined,
+                  })
+                }
                 renderAdvancedContent={(content, count) => (
                   <ProxyGroupAdvancedPanel
                     target={{ kind: "custom", id: group.id, name: group.name }}
                     advanced={group.advanced || {}}
-                    onChange={(patch) => {
-                      const nextAdvanced = { ...(group.advanced || {}), ...patch };
-                      if (
-                        Object.prototype.hasOwnProperty.call(patch, "memberMode") &&
-                        patch.memberMode === undefined
-                      ) {
-                        delete nextAdvanced.memberMode;
-                      }
-                      updateCustomProxyGroup(group.id, {
-                        advanced: nextAdvanced,
-                      });
-                    }}
+                    onChange={(patch) => patchCustomGroupAdvanced(group.id, patch)}
                     rulesCount={count}
                     rulesContent={count > 0 ? content : null}
                   />

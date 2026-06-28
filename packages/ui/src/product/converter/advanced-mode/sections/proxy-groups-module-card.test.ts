@@ -26,6 +26,7 @@ vi.mock("lucide-react", () => ({
   ChevronDown: () => React.createElement("span", null, "down-icon"),
   ChevronRight: () => React.createElement("span", null, "right-icon"),
   HelpCircle: () => React.createElement("span", null, "help-icon"),
+  Layers: () => React.createElement("span", null, "layers-icon"),
   Pencil: () => React.createElement("span", null, "pencil-icon"),
   Shuffle: () => React.createElement("span", null, "shuffle-icon"),
   SlidersHorizontal: () => React.createElement("span", null, "sliders-icon"),
@@ -163,6 +164,24 @@ describe("ProxyGroupsModuleCard", () => {
     expect(handlers.onStartEditing).toHaveBeenCalled();
     expect(handlers.onHide).toHaveBeenCalled();
     expect(handlers.onToggleEnabled).toHaveBeenCalledWith(false);
+  });
+
+  it("forwards the members-only shortcut from the header", () => {
+    const onChangeMembersOnly = vi.fn();
+    renderToStaticMarkup(
+      React.createElement(
+        ProxyGroupsModuleCard,
+        props({
+          membersOnly: true,
+          onChangeMembersOnly,
+        }),
+      ),
+    );
+
+    const shortcut = mocks.buttons.find((button) => button.title === "成员：仅代理组");
+    expect(shortcut).toBeTruthy();
+    shortcut.onClick({ stopPropagation: vi.fn() });
+    expect(onChangeMembersOnly).toHaveBeenCalledWith(false);
   });
 
   it("handles editing input changes, keyboard commits, and cancel buttons", () => {
