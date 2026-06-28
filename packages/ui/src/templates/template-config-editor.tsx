@@ -321,6 +321,9 @@ export function TemplateConfigEditor({ config, yaml, onConfigChange, onYamlChang
             expanded={expandedSections.has("targetGroups")}
             onToggle={() => toggleSection("targetGroups")}
           >
+            <div className="mb-2 rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2 text-[11px] leading-5 text-white/45">
+              新增目标组：点击“添加”创建机场 A、自建 A 这类目标组，配置来源标识、地区或正则筛选后，再到“预设规则模块”或“分流规则”中选择它。
+            </div>
             <div className="grid gap-2 lg:grid-cols-[minmax(16rem,0.9fr)_minmax(0,1.4fr)]">
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
@@ -349,7 +352,9 @@ export function TemplateConfigEditor({ config, yaml, onConfigChange, onYamlChang
                 <div className="max-h-[23rem] space-y-1 overflow-y-auto pr-1 custom-scrollbar">
                   {visibleCustomGroups.length === 0 ? (
                     <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-8 text-center text-xs text-white/45">
-                      没有匹配的目标组
+                      {config.customProxyGroups.length === 0
+                        ? "还没有目标组。点击“添加”创建一个目标组，然后配置来源标识、地区或正则筛选。"
+                        : "没有匹配的目标组"}
                     </div>
                   ) : (
                     visibleCustomGroups.map((group) => {
@@ -606,7 +611,7 @@ function CustomGroupDetail({
   if (!group) {
     return (
       <div className="flex min-h-[18rem] items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] px-4 text-center text-xs text-white/45">
-        选择左侧目标组后编辑详情
+        选择左侧目标组后编辑详情；如果列表为空，先点击“添加”创建。
       </div>
     );
   }

@@ -248,6 +248,10 @@ export function ProxyGroupsCustomGroupsPanel({
 
   return (
     <div className="space-y-2">
+      <div className="rounded border border-white/10 bg-white/[0.035] px-3 py-2 text-[11px] leading-5 text-white/45">
+        新增代理组：填写名称和描述后点击右侧勾号创建；创建后展开该组，可在成员设置中加入其它代理组，或开启“仅显示代理组”让它只由代理组组成。
+      </div>
+
       {/* 新建自定义分组 */}
       <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-1.5">
         <div className="grid min-w-0 grid-cols-[minmax(5.75rem,1fr)_minmax(0,1.47fr)] gap-1.5">
@@ -294,7 +298,8 @@ export function ProxyGroupsCustomGroupsPanel({
             setNewCustomGroupDraft({ emoji: pickRandomEmoji(emoji), name: "" });
             setNewCustomGroupDescription("");
           }}
-          title="新增"
+          title="新增代理组"
+          aria-label="新增代理组"
         >
           <Check className="h-3.5 w-3.5" />
         </Button>

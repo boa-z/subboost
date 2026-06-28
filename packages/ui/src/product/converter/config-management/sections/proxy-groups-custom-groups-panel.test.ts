@@ -221,7 +221,10 @@ describe("ProxyGroupsCustomGroupsPanel", () => {
 
   it("adds node pools with a random reset emoji and rejects duplicates", () => {
     vi.spyOn(Math, "random").mockReturnValue(0);
-    const { setters } = renderPanel({ 1: { emoji: "🧩", name: "New" }, 2: "Useful group" });
+    const { html, setters } = renderPanel({ 1: { emoji: "🧩", name: "New" }, 2: "Useful group" });
+
+    expect(html).toContain("新增代理组");
+    expect(html).toContain("填写名称和描述后点击右侧勾号创建");
 
     const nameInput = mocks.captures.inputs.find((props: any) => props.placeholder === "自定义分组名称");
     nameInput.onChange({ target: { value: "Typed" } });
@@ -232,7 +235,7 @@ describe("ProxyGroupsCustomGroupsPanel", () => {
 
     expect(mocks.captures.typeMenus.every((props: any) => props.trigger)).toBe(true);
 
-    mocks.captures.buttons.find((props: any) => props.title === "新增").onClick();
+    mocks.captures.buttons.find((props: any) => props.title === "新增代理组").onClick();
     expect(mocks.store.addCustomProxyGroup).toHaveBeenCalledWith({
       name: "🧩 New",
       emoji: "🧩",
@@ -246,7 +249,7 @@ describe("ProxyGroupsCustomGroupsPanel", () => {
     expect(setters[2]).toHaveBeenCalledWith("");
 
     renderPanel({ 1: { emoji: "🧩", name: "Custom" } });
-    mocks.captures.buttons.find((props: any) => props.title === "新增").onClick();
+    mocks.captures.buttons.find((props: any) => props.title === "新增代理组").onClick();
     expect(mocks.toast).toHaveBeenCalledWith(expect.objectContaining({ title: "代理组名称已存在，请换一个名称。", variant: "warning" }));
   });
 
@@ -264,11 +267,11 @@ describe("ProxyGroupsCustomGroupsPanel", () => {
 
   it("ignores blank new group names and always adds as node pool select", () => {
     renderPanel({ 1: { emoji: "🧩", name: "   " } });
-    mocks.captures.buttons.find((props: any) => props.title === "新增").onClick();
+    mocks.captures.buttons.find((props: any) => props.title === "新增代理组").onClick();
     expect(mocks.store.addCustomProxyGroup).not.toHaveBeenCalled();
 
     renderPanel({ 1: { emoji: "🧩", name: "Balanced" }, 2: "  LB group  " });
-    mocks.captures.buttons.find((props: any) => props.title === "新增").onClick();
+    mocks.captures.buttons.find((props: any) => props.title === "新增代理组").onClick();
     expect(mocks.store.addCustomProxyGroup).toHaveBeenCalledWith({
       name: "🧩 Balanced",
       emoji: "🧩",
@@ -447,7 +450,7 @@ describe("ProxyGroupsCustomGroupsPanel", () => {
 
     mocks.store.dialerProxyGroups = [null, { name: " " }];
     renderPanel({ 1: { emoji: "🧩", name: "Unique" } });
-    mocks.captures.buttons.find((props: any) => props.title === "新增").onClick();
+    mocks.captures.buttons.find((props: any) => props.title === "新增代理组").onClick();
     expect(mocks.store.addCustomProxyGroup).toHaveBeenCalledWith({
       name: "🧩 Unique",
       emoji: "🧩",

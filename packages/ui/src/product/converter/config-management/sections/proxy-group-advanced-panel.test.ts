@@ -116,6 +116,7 @@ describe("ProxyGroupAdvancedPanel", () => {
 
     expect(html).toContain("导入源");
     expect(html).toContain("仅显示代理组");
+    expect(html).toContain("需要新增代理组时，在“分流代理组”顶部填写名称并点击勾号。");
     expect(html).toContain("Primary");
     expect(html).toContain("YAML Feed");
     expect(html).not.toContain("剩余流量");

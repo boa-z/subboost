@@ -131,6 +131,8 @@ describe("TemplateConfigEditor", () => {
 
     expect(html).toContain("基础设置");
     expect(html).toContain("分流目标组");
+    expect(html).toContain("新增目标组");
+    expect(html).toContain("点击“添加”创建机场 A、自建 A 这类目标组");
     expect(html).toContain("预设规则模块");
     expect(html).toContain("机场 A");
     expect(html).toContain("分流规则");

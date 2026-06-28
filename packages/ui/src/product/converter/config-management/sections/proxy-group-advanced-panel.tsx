@@ -358,6 +358,9 @@ export function ProxyGroupAdvancedPanel({
             <span className="block text-[10px] text-white/35">
               开启后默认隐藏具体节点，只保留代理组、DIRECT 和 REJECT；手动加入的节点仍会保留。
             </span>
+            <span className="block text-[10px] text-white/35">
+              需要新增代理组时，在“分流代理组”顶部填写名称并点击勾号。
+            </span>
           </span>
         </label>
       </div>
