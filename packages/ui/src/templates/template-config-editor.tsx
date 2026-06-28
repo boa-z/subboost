@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { FileCode, Globe2, ListChecks, Network, Plus, Route, Settings2, Trash2 } from "lucide-react";
+import { FileCode, Globe2, ListChecks, Network, Plus, Route, Search, Settings2, Trash2 } from "lucide-react";
 import { Button } from "@subboost/ui/components/ui/button";
 import { Badge } from "@subboost/ui/components/ui/badge";
 import { Input } from "@subboost/ui/components/ui/input";
@@ -18,7 +18,15 @@ import { Textarea } from "@subboost/ui/components/ui/textarea";
 import { stringifySubBoostTemplateConfig } from "@subboost/core/templates/config-yaml";
 import { CUSTOM_RULE_TYPES, createCustomRuleId } from "@subboost/core/rules/custom-rule-utils";
 import { PROXY_GROUP_MODULES } from "@subboost/core/generator/proxy-groups";
-import { PROXY_GROUP_GROUP_TYPES, type CustomProxyGroup, type CustomRule, type CustomRuleSet, type ProxyGroupGroupType } from "@subboost/core/types/config";
+import {
+  DEFAULT_LOAD_BALANCE_STRATEGY,
+  PROXY_GROUP_GROUP_TYPES,
+  type CustomProxyGroup,
+  type CustomRule,
+  type CustomRuleSet,
+  type LoadBalanceStrategy,
+  type ProxyGroupGroupType,
+} from "@subboost/core/types/config";
 import type { SubBoostTemplateConfig } from "@subboost/core/types/template-config";
 
 type TemplateEditorSectionKey = "base" | "modules" | "customGroups" | "rules" | "dns";
@@ -39,6 +47,14 @@ const GROUP_TYPE_LABELS: Record<ProxyGroupGroupType, string> = {
   "load-balance": "负载均衡",
   "direct-first": "DIRECT 优先",
   "reject-first": "REJECT 优先",
+};
+
+const LOAD_BALANCE_STRATEGIES: LoadBalanceStrategy[] = ["consistent-hashing", "round-robin", "sticky-sessions"];
+
+const LOAD_BALANCE_STRATEGY_LABELS: Record<LoadBalanceStrategy, string> = {
+  "consistent-hashing": "一致性哈希",
+  "round-robin": "轮询",
+  "sticky-sessions": "会话保持",
 };
 
 function nextTemplateConfig(config: SubBoostTemplateConfig, patch: Partial<SubBoostTemplateConfig>): SubBoostTemplateConfig {
@@ -92,12 +108,32 @@ export function TemplateConfigEditor({ config, yaml, onConfigChange, onYamlChang
   const [newRuleType, setNewRuleType] = React.useState<CustomRule["type"]>("DOMAIN");
   const [newRuleValue, setNewRuleValue] = React.useState("");
   const [newRuleTarget, setNewRuleTarget] = React.useState("DIRECT");
+  const [customGroupSearch, setCustomGroupSearch] = React.useState("");
+  const [selectedCustomGroupId, setSelectedCustomGroupId] = React.useState<string | null>(null);
 
   const targetOptions = React.useMemo(() => {
     const options = getTargetOptions(config);
     if (!options.includes(newRuleTarget)) options.push(newRuleTarget);
     return options;
   }, [config, newRuleTarget]);
+  const visibleCustomGroups = React.useMemo(() => {
+    const keyword = customGroupSearch.trim().toLowerCase();
+    if (!keyword) return config.customProxyGroups;
+    return config.customProxyGroups.filter((group) =>
+      [group.name, group.id, group.description, group.emoji]
+        .filter((value): value is string => typeof value === "string")
+        .some((value) => value.toLowerCase().includes(keyword)),
+    );
+  }, [config.customProxyGroups, customGroupSearch]);
+  const selectedCustomGroupIndex = React.useMemo(() => {
+    if (selectedCustomGroupId) {
+      const index = config.customProxyGroups.findIndex((group) => group.id === selectedCustomGroupId);
+      if (index >= 0) return index;
+    }
+    if (visibleCustomGroups.length === 0) return -1;
+    return config.customProxyGroups.findIndex((group) => group.id === visibleCustomGroups[0]?.id);
+  }, [config.customProxyGroups, selectedCustomGroupId, visibleCustomGroups]);
+  const selectedCustomGroup = selectedCustomGroupIndex >= 0 ? config.customProxyGroups[selectedCustomGroupIndex] : null;
 
   const emitConfig = React.useCallback(
     (next: SubBoostTemplateConfig) => {
@@ -141,6 +177,24 @@ export function TemplateConfigEditor({ config, yaml, onConfigChange, onYamlChang
 
   const updateCustomGroup = (index: number, patch: Partial<CustomProxyGroup>) => {
     patchConfig({ customProxyGroups: updateArrayItem(config.customProxyGroups, index, patch) });
+  };
+
+  const addCustomGroup = () => {
+    const group = createCustomGroup();
+    patchConfig({ customProxyGroups: [...config.customProxyGroups, group] });
+    setSelectedCustomGroupId(group.id);
+  };
+
+  const removeCustomGroup = (groupId: string) => {
+    const index = config.customProxyGroups.findIndex((group) => group.id === groupId);
+    if (index < 0) return;
+    patchConfig({ customProxyGroups: removeArrayItem(config.customProxyGroups, index) });
+    setSelectedCustomGroupId((current) => (current === groupId ? null : current));
+  };
+
+  const patchSelectedCustomGroup = (patch: Partial<CustomProxyGroup>) => {
+    if (selectedCustomGroupIndex < 0) return;
+    updateCustomGroup(selectedCustomGroupIndex, patch);
   };
 
   const updateRuleSet = (index: number, patch: Partial<CustomRuleSet>) => {
@@ -268,45 +322,81 @@ export function TemplateConfigEditor({ config, yaml, onConfigChange, onYamlChang
             expanded={expandedSections.has("customGroups")}
             onToggle={() => toggleSection("customGroups")}
           >
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={() => patchConfig({ customProxyGroups: [...config.customProxyGroups, createCustomGroup()] })}
-              className="h-8 gap-1 text-xs"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              添加分流组
-            </Button>
-            <div className="mt-2 space-y-1.5">
-              {config.customProxyGroups.map((group, index) => (
-                <div key={group.id} className="rounded-lg border border-white/10 bg-white/[0.04] p-2">
-                  <div className="grid gap-1.5 md:grid-cols-[minmax(0,1fr)_8rem_auto]">
-                    <Input value={group.name} onChange={(event) => updateCustomGroup(index, { name: event.target.value })} className="h-8 text-xs" />
-                    <Select value={group.groupType} onValueChange={(value) => updateCustomGroup(index, { groupType: value as ProxyGroupGroupType })}>
-                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {PROXY_GROUP_GROUP_TYPES.map((type) => (
-                          <SelectItem key={type} value={type} className="text-xs">{GROUP_TYPE_LABELS[type]}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => patchConfig({ customProxyGroups: removeArrayItem(config.customProxyGroups, index) })}
-                      className="h-8 w-8 text-white/40 hover:text-red-300"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+            <div className="grid gap-2 lg:grid-cols-[minmax(16rem,0.9fr)_minmax(0,1.4fr)]">
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="relative min-w-[12rem] flex-1">
+                    <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/30" />
+                    <Input
+                      value={customGroupSearch}
+                      onChange={(event) => setCustomGroupSearch(event.target.value)}
+                      placeholder="搜索分流组"
+                      className="h-8 pl-7 text-xs"
+                    />
                   </div>
-                  <div className="mt-1.5 grid gap-1.5 md:grid-cols-2">
-                    <Input value={group.emoji} onChange={(event) => updateCustomGroup(index, { emoji: event.target.value })} placeholder="图标/前缀" className="h-7 text-xs" />
-                    <Input value={group.description ?? ""} onChange={(event) => updateCustomGroup(index, { description: event.target.value })} placeholder="描述" className="h-7 text-xs" />
-                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={addCustomGroup}
+                    title="添加分流组"
+                    className="h-8 gap-1 text-xs"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    添加
+                  </Button>
                 </div>
-              ))}
+
+                <div className="max-h-[23rem] space-y-1 overflow-y-auto pr-1 custom-scrollbar">
+                  {visibleCustomGroups.length === 0 ? (
+                    <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-8 text-center text-xs text-white/45">
+                      没有匹配的分流组
+                    </div>
+                  ) : (
+                    visibleCustomGroups.map((group) => {
+                      const active = group.id === selectedCustomGroupId;
+                      return (
+                        <button
+                          key={group.id}
+                          type="button"
+                          onClick={() => setSelectedCustomGroupId(group.id)}
+                          className={`w-full rounded-lg border p-2 text-left transition-colors ${
+                            active
+                              ? "border-emerald-500/40 bg-emerald-500/10"
+                              : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07]"
+                          }`}
+                        >
+                          <div className="flex min-w-0 items-center gap-2">
+                            <Switch
+                              checked={group.enabled !== false}
+                              onCheckedChange={(checked) => {
+                                const index = config.customProxyGroups.findIndex((item) => item.id === group.id);
+                                if (index >= 0) updateCustomGroup(index, { enabled: checked ? undefined : false });
+                              }}
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate text-xs font-medium text-white/85">{group.name}</div>
+                              <div className="truncate text-[10px] text-white/40">{group.id}</div>
+                            </div>
+                            <Badge variant="outline" className="border-white/10 bg-white/5 text-white/55">
+                              {GROUP_TYPE_LABELS[group.groupType]}
+                            </Badge>
+                          </div>
+                          {group.description && (
+                            <div className="mt-1 truncate text-[10px] text-white/45">{group.description}</div>
+                          )}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              <CustomGroupDetail
+                group={selectedCustomGroup}
+                onPatch={patchSelectedCustomGroup}
+                onDelete={() => selectedCustomGroup && removeCustomGroup(selectedCustomGroup.id)}
+              />
             </div>
           </EditorSection>
 
@@ -433,6 +523,136 @@ function ToggleRow({ label, checked, onChange }: { label: string; checked: boole
       <Switch checked={checked} onCheckedChange={onChange} />
     </div>
   );
+}
+
+function CustomGroupDetail({
+  group,
+  onPatch,
+  onDelete,
+}: {
+  group: CustomProxyGroup | null;
+  onPatch: (patch: Partial<CustomProxyGroup>) => void;
+  onDelete: () => void;
+}) {
+  if (!group) {
+    return (
+      <div className="flex min-h-[18rem] items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] px-4 text-center text-xs text-white/45">
+        选择左侧分流组后编辑详情
+      </div>
+    );
+  }
+
+  const advanced = group.advanced ?? {};
+  const groupType = group.groupType;
+  const strategy = group.strategy ?? DEFAULT_LOAD_BALANCE_STRATEGY;
+
+  const patchAdvanced = (patch: NonNullable<CustomProxyGroup["advanced"]>) => {
+    onPatch({ advanced: { ...advanced, ...patch } });
+  };
+
+  return (
+    <div className="rounded-lg border border-white/10 bg-white/[0.04] p-3">
+      <div className="mb-3 flex min-w-0 items-center gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-medium text-white">{group.name}</div>
+          <div className="truncate text-[10px] text-white/40">{group.id}</div>
+        </div>
+        <Button type="button" variant="ghost" size="icon" onClick={onDelete} className="h-8 w-8 text-white/40 hover:text-red-300">
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+
+      <div className="grid gap-2 md:grid-cols-2">
+        <Field label="组名">
+          <Input value={group.name} onChange={(event) => onPatch({ name: event.target.value })} className="h-8 text-xs" />
+        </Field>
+        <Field label="图标/前缀">
+          <Input value={group.emoji} onChange={(event) => onPatch({ emoji: event.target.value })} className="h-8 text-xs" />
+        </Field>
+        <Field label="分组类型">
+          <Select value={groupType} onValueChange={(value) => onPatch({ groupType: value as ProxyGroupGroupType })}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {PROXY_GROUP_GROUP_TYPES.map((type) => (
+                <SelectItem key={type} value={type} className="text-xs">{GROUP_TYPE_LABELS[type]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label="负载均衡策略">
+          <Select
+            value={strategy}
+            onValueChange={(value) => onPatch({ strategy: value as LoadBalanceStrategy })}
+            disabled={groupType !== "load-balance"}
+          >
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {LOAD_BALANCE_STRATEGIES.map((item) => (
+                <SelectItem key={item} value={item} className="text-xs">{LOAD_BALANCE_STRATEGY_LABELS[item]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <div className="md:col-span-2">
+          <Field label="描述">
+            <Input value={group.description ?? ""} onChange={(event) => onPatch({ description: event.target.value })} className="h-8 text-xs" />
+          </Field>
+        </div>
+
+        <ToggleRow label="启用该分流组" checked={group.enabled !== false} onChange={(checked) => onPatch({ enabled: checked ? undefined : false })} />
+        <ToggleRow
+          label="加入其他分流组成员"
+          checked={group.includeInGroupMembers !== false}
+          onChange={(checked) => onPatch({ includeInGroupMembers: checked })}
+        />
+        <ToggleRow
+          label="使用筛选节点作为成员"
+          checked={group.memberSource === "filtered-nodes"}
+          onChange={(checked) => onPatch({ memberSource: checked ? "filtered-nodes" : undefined })}
+        />
+        <ToggleRow
+          label="仅引用分流组成员"
+          checked={advanced.memberMode === "groups-only"}
+          onChange={(checked) => patchAdvanced({ memberMode: checked ? "groups-only" : "default" })}
+        />
+
+        <Field label="来源标识（逗号分隔）">
+          <Input
+            value={(advanced.sourceKeys ?? []).join(", ")}
+            onChange={(event) => patchAdvanced({ sourceKeys: splitCommaList(event.target.value) })}
+            placeholder="airport-a, self-hosted"
+            className="h-8 text-xs"
+          />
+        </Field>
+        <Field label="地区（逗号分隔）">
+          <Input
+            value={(advanced.regions ?? []).join(", ")}
+            onChange={(event) => patchAdvanced({ regions: splitCommaList(event.target.value) as NonNullable<typeof advanced.regions> })}
+            placeholder="hk, jp, us"
+            className="h-8 text-xs"
+          />
+        </Field>
+        <Field label="包含正则">
+          <Input value={advanced.includeRegex ?? ""} onChange={(event) => patchAdvanced({ includeRegex: event.target.value })} className="h-8 text-xs" />
+        </Field>
+        <Field label="排除正则">
+          <Input value={advanced.excludeRegex ?? ""} onChange={(event) => patchAdvanced({ excludeRegex: event.target.value })} className="h-8 text-xs" />
+        </Field>
+      </div>
+    </div>
+  );
+}
+
+function splitCommaList(value: string): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const part of value.split(",")) {
+    const item = part.trim();
+    if (!item || seen.has(item)) continue;
+    seen.add(item);
+    out.push(item);
+  }
+  return out;
 }
 
 function TargetSelect({ value, options, onChange }: { value: string; options: string[]; onChange: (value: string) => void }) {

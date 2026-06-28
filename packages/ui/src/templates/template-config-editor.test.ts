@@ -19,6 +19,7 @@ vi.mock("lucide-react", () => ({
   Network: () => null,
   Plus: () => null,
   Route: () => null,
+  Search: () => null,
   Settings2: () => null,
   Trash2: () => null,
 }));
@@ -75,7 +76,18 @@ function config(): SubBoostTemplateConfig {
     template: "minimal",
     enabledProxyGroups: ["select", "auto", "final"],
     hiddenProxyGroups: [],
-    customProxyGroups: [],
+    customProxyGroups: [
+      {
+        id: "custom-a",
+        name: "机场 A",
+        emoji: "A",
+        groupType: "select",
+        memberSource: "filtered-nodes",
+        includeInGroupMembers: true,
+        description: "provider a",
+        advanced: { sourceKeys: ["airport-a"] },
+      },
+    ],
     proxyGroupAdvanced: {},
     proxyGroupAdvancedModeEnabled: false,
     customRuleSets: [],
@@ -120,6 +132,7 @@ describe("TemplateConfigEditor", () => {
     expect(html).toContain("基础设置");
     expect(html).toContain("内置分流组");
     expect(html).toContain("自定义分流组");
+    expect(html).toContain("机场 A");
     expect(html).toContain("分流规则");
     expect(html).toContain("DNS");
 
@@ -127,10 +140,19 @@ describe("TemplateConfigEditor", () => {
     expect(onConfigChange).toHaveBeenCalledWith(expect.objectContaining({ mixedPort: 7899 }));
     expect(onYamlChange).toHaveBeenCalledWith(expect.stringContaining("template: minimal"));
 
-    const addGroupButton = mocks.buttons.find((props) => textOf(props.children).includes("添加分流组"));
+    const addGroupButton = mocks.buttons.find((props) => props.title === "添加分流组");
     addGroupButton.onClick();
     expect(onConfigChange).toHaveBeenCalledWith(expect.objectContaining({
-      customProxyGroups: [expect.objectContaining({ name: "新分流组" })],
+      customProxyGroups: [expect.objectContaining({ name: "机场 A" }), expect.objectContaining({ name: "新分流组" })],
+    }));
+
+    const searchInput = mocks.inputs.find((props) => props.placeholder === "搜索分流组");
+    searchInput.onChange({ target: { value: "机场" } });
+
+    const nameInput = mocks.inputs.find((props) => props.value === "机场 A");
+    nameInput.onChange({ target: { value: "机场 A 改" } });
+    expect(onConfigChange).toHaveBeenCalledWith(expect.objectContaining({
+      customProxyGroups: [expect.objectContaining({ name: "机场 A 改" })],
     }));
 
     mocks.textareas.at(-1).onChange({ target: { value: "template: full\n" } });
