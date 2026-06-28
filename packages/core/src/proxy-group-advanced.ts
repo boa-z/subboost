@@ -1,4 +1,7 @@
-import { getNodeSourceIds } from "@subboost/core/subscription/node-source-state";
+import {
+  getNodeSourceKeys,
+  normalizeSourceKey,
+} from "@subboost/core/subscription/node-source-state";
 import {
   DEFAULT_LOAD_BALANCE_STRATEGY,
   isLoadBalanceStrategy,
@@ -106,6 +109,18 @@ function normalizeStringList(value: unknown): string[] {
   return out;
 }
 
+function normalizeSourceKeyList(value: unknown): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const item of normalizeStringList(value)) {
+    const key = normalizeSourceKey(item);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(key);
+  }
+  return out;
+}
+
 function normalizeRegions(value: unknown): NodeRegion[] {
   if (!Array.isArray(value)) return [];
   const out: NodeRegion[] = [];
@@ -169,7 +184,8 @@ function normalizeMemberList(value: unknown): ProxyGroupMemberRef[] {
 export function normalizeProxyGroupAdvancedConfig(value: unknown): ProxyGroupAdvancedConfig {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   const item = value as Record<string, unknown>;
-  const sourceIds = normalizeStringList(item.sourceIds);
+  const memberMode = item.memberMode === "groups-only" ? "groups-only" : undefined;
+  const sourceKeys = normalizeSourceKeyList(item.sourceKeys);
   const regions = normalizeRegions(item.regions);
   const includeRegex = typeof item.includeRegex === "string" ? item.includeRegex.trim() : "";
   const excludeRegex = typeof item.excludeRegex === "string" ? item.excludeRegex.trim() : "";
@@ -183,7 +199,8 @@ export function normalizeProxyGroupAdvancedConfig(value: unknown): ProxyGroupAdv
   const excludedMembers = normalizeMemberList(item.excludedMembers);
   const memberOrder = normalizeMemberList(item.memberOrder);
   return {
-    ...(sourceIds.length > 0 ? { sourceIds } : {}),
+    ...(memberMode ? { memberMode } : {}),
+    ...(sourceKeys.length > 0 ? { sourceKeys } : {}),
     ...(regions.length > 0 ? { regions } : {}),
     ...(includeRegex ? { includeRegex } : {}),
     ...(excludeRegex ? { excludeRegex } : {}),
@@ -259,10 +276,10 @@ function nodePassesAdvancedFilters(
   const node = nodeByName.get(member.ref.name);
   if (!node) return false;
 
-  const sourceIds = normalizeStringList(advanced.sourceIds);
-  if (sourceIds.length > 0) {
-    const sourceIdSet = new Set(sourceIds);
-    if (!getNodeSourceIds(node).some((id) => sourceIdSet.has(id))) return false;
+  const sourceKeys = normalizeSourceKeyList(advanced.sourceKeys);
+  if (sourceKeys.length > 0) {
+    const sourceKeySet = new Set(sourceKeys);
+    if (!getNodeSourceKeys(node).some((key) => sourceKeySet.has(key))) return false;
   }
 
   const regions = normalizeRegions(advanced.regions);
@@ -332,6 +349,7 @@ export function resolveProxyGroupMembers(options: ResolveProxyGroupMembersOption
   const includedBase = candidates.filter((member) => {
     if (excludedKeys.has(member.key)) return false;
     if (extraKeys.has(member.key)) return true;
+    if (advanced.memberMode === "groups-only" && member.ref.kind === "node") return false;
     return nodePassesAdvancedFilters(member, nodeByName, advanced);
   });
 

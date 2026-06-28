@@ -177,6 +177,7 @@ const urlSource = {
   type: "url",
   content: "https://example.com/sub",
   tag: "HK",
+  sourceKey: "airport-a",
   nameTemplate: "[{tag}] {name}",
   useProxyProviders: false,
   userinfoUrl: "https://example.com/userinfo",
@@ -309,6 +310,7 @@ describe("advanced mode InputSection", () => {
         id: "s1",
         content: urlSource.content,
         tag: "HK",
+        sourceKey: "airport-a",
         nameTemplate: "[{tag}] {name}",
         useProxyProviders: false,
         userinfoUrl: "https://example.com/userinfo",
@@ -336,13 +338,14 @@ describe("advanced mode InputSection", () => {
       id: "s1",
       content: "https://example.com/sub",
       tag: "HK",
+      sourceKey: "airport-a",
       nameTemplate: "[{tag}] {name}",
       useProxyProviders: false,
       userinfoUrl: "https://example.com/userinfo",
       userinfoUserAgent: "clash",
     });
 
-    const existingSnapshot = { id: "s1", content: "same", tag: "", nameTemplate: "", useProxyProviders: false, userinfoUrl: "", userinfoUserAgent: "" };
+    const existingSnapshot = { id: "s1", content: "same", tag: "", sourceKey: "", nameTemplate: "", useProxyProviders: false, userinfoUrl: "", userinfoUserAgent: "" };
     renderSection({ 1: "s1", 2: existingSnapshot });
     expect((stateMock.setters[2] as any).lastValue).toBe(existingSnapshot);
 
@@ -360,6 +363,7 @@ describe("advanced mode InputSection", () => {
       id: "s3",
       content: "https://missing-meta.example/sub",
       tag: "",
+      sourceKey: "",
       nameTemplate: "",
       useProxyProviders: false,
       userinfoUrl: "",

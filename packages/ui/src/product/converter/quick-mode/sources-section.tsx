@@ -42,6 +42,7 @@ export function SourcesSection() {
     content: string;
     tag: string;
     nameTemplate: string;
+    sourceKey: string;
     useProxyProviders: boolean;
     userinfoUrl: string;
     userinfoUserAgent: string;
@@ -58,6 +59,7 @@ export function SourcesSection() {
         id: expandedSource.id,
         content: expandedSource.content,
         tag: (expandedSource.tag ?? "").trim(),
+        sourceKey: (expandedSource.sourceKey ?? "").trim(),
         nameTemplate: (expandedSource.nameTemplate ?? "").trim(),
         useProxyProviders: Boolean(expandedSource.useProxyProviders),
         userinfoUrl: (expandedSource.userinfoUrl ?? "").trim(),
@@ -80,6 +82,7 @@ export function SourcesSection() {
       const next = {
         content: expandedSource.content,
         tag: (expandedSource.tag ?? "").trim(),
+        sourceKey: (expandedSource.sourceKey ?? "").trim(),
         nameTemplate: (expandedSource.nameTemplate ?? "").trim(),
         useProxyProviders: Boolean(expandedSource.useProxyProviders),
         userinfoUrl: (expandedSource.userinfoUrl ?? "").trim(),
@@ -88,6 +91,7 @@ export function SourcesSection() {
       const changed =
         next.content !== expandedSourceSnapshot.content ||
         next.tag !== expandedSourceSnapshot.tag ||
+        next.sourceKey !== expandedSourceSnapshot.sourceKey ||
         next.nameTemplate !== expandedSourceSnapshot.nameTemplate ||
         next.useProxyProviders !== expandedSourceSnapshot.useProxyProviders ||
         next.userinfoUrl !== expandedSourceSnapshot.userinfoUrl ||
@@ -175,6 +179,7 @@ export function SourcesSection() {
 
         const needsReimport =
           Object.prototype.hasOwnProperty.call(patch, "tag") ||
+          Object.prototype.hasOwnProperty.call(patch, "sourceKey") ||
           Object.prototype.hasOwnProperty.call(patch, "nameTemplate") ||
           Object.prototype.hasOwnProperty.call(patch, "useProxyProviders") ||
           Object.prototype.hasOwnProperty.call(patch, "userinfoUrl") ||
@@ -488,7 +493,7 @@ export function SourcesSection() {
 
           {expandedSource && (
             <div className="space-y-3">
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-4">
                 <div className="space-y-1">
                   <div className="text-xs text-white/60">标签（tag）</div>
                   <Input
@@ -496,6 +501,15 @@ export function SourcesSection() {
                     onChange={(e) => updateSourceMeta(expandedSource.id, { tag: e.target.value })}
                     placeholder="例如：A / 订阅1 / 自建1"
                     className="text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs text-white/60">来源标识</div>
+                  <Input
+                    value={expandedSource.sourceKey ?? ""}
+                    onChange={(e) => updateSourceMeta(expandedSource.id, { sourceKey: e.target.value })}
+                    placeholder="例如：airport-a"
+                    className="text-xs font-mono"
                   />
                 </div>
                 <div className="space-y-1">
@@ -513,7 +527,7 @@ export function SourcesSection() {
               </div>
 
               <div className="text-[11px] text-white/40">
-                可用占位符：{"{tag}"}、{"{name}"}；留空则默认：{DEFAULT_NODE_NAME_TEMPLATE}
+                来源标识用于节点池/分流组筛选，建议长期保持不变。可用占位符：{"{tag}"}、{"{name}"}；留空则默认：{DEFAULT_NODE_NAME_TEMPLATE}
               </div>
 
               <div className="space-y-1">

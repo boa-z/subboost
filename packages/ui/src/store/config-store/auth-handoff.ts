@@ -67,6 +67,7 @@ function sourceArray(value: unknown): SubscriptionSource[] | undefined {
       ...(typeof item.lastParsedTag === "string" ? { lastParsedTag: item.lastParsedTag } : {}),
       ...(typeof item.lastParsedNameTemplate === "string" ? { lastParsedNameTemplate: item.lastParsedNameTemplate } : {}),
       ...(typeof item.tag === "string" ? { tag: item.tag } : {}),
+      ...(typeof item.sourceKey === "string" ? { sourceKey: item.sourceKey } : {}),
       ...(typeof item.nameTemplate === "string" ? { nameTemplate: item.nameTemplate } : {}),
       ...(typeof item.useProxyProviders === "boolean" ? { useProxyProviders: item.useProxyProviders } : {}),
       ...(typeof item.userinfoUrl === "string" ? { userinfoUrl: item.userinfoUrl } : {}),

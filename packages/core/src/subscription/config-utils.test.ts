@@ -257,7 +257,7 @@ describe("subscription config utils", () => {
             groupType: "load-balance",
             strategy: "round-robin",
             advanced: {
-              sourceIds: [" source-a ", "source-a"],
+              sourceKeys: [" Airport A ", "airport-a"],
               regions: ["jp", "bad"],
               extraMembers: [{ kind: "direct" }],
             },
@@ -293,7 +293,7 @@ describe("subscription config utils", () => {
       groupType: "load-balance",
       strategy: "round-robin",
       advanced: {
-        sourceIds: ["source-a"],
+        sourceKeys: ["airport-a"],
         regions: ["jp"],
         extraMembers: [{ kind: "direct" }],
       },
@@ -669,7 +669,7 @@ describe("subscription config utils", () => {
             groupType: "load-balance",
             strategy: "round-robin",
             advanced: {
-              sourceIds: ["source-a"],
+              sourceKeys: ["airport-a"],
               regions: ["tw"],
               includeRegex: "TW",
               excludeRegex: "test",
@@ -756,7 +756,7 @@ describe("subscription config utils", () => {
         groupType: "load-balance",
         strategy: "round-robin",
         advanced: {
-          sourceIds: ["source-a"],
+          sourceKeys: ["airport-a"],
           regions: ["tw"],
           includeRegex: "TW",
           excludeRegex: "test",

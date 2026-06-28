@@ -42,7 +42,7 @@ export function InputSourceEditorDialog({
 
         {source && (
           <div className="space-y-3">
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-4">
               <div className="space-y-1">
                 <div className="text-xs text-white/60">标签（tag）</div>
                 <Input
@@ -50,6 +50,15 @@ export function InputSourceEditorDialog({
                   onChange={(e) => onUpdateMeta(source.id, { tag: e.target.value })}
                   placeholder="例如：A / 订阅1 / 自建1"
                   className="text-xs"
+                />
+              </div>
+              <div className="space-y-1">
+                <div className="text-xs text-white/60">来源标识</div>
+                <Input
+                  value={source.sourceKey ?? ""}
+                  onChange={(e) => onUpdateMeta(source.id, { sourceKey: e.target.value })}
+                  placeholder="例如：airport-a"
+                  className="text-xs font-mono"
                 />
               </div>
               <div className="space-y-1">
@@ -67,7 +76,7 @@ export function InputSourceEditorDialog({
             </div>
 
             <div className="text-[11px] text-white/40">
-              可用占位符：{"{tag}"}、{"{name}"}；留空则默认：{DEFAULT_NODE_NAME_TEMPLATE}
+              来源标识用于节点池/分流组筛选，建议长期保持不变。可用占位符：{"{tag}"}、{"{name}"}；留空则默认：{DEFAULT_NODE_NAME_TEMPLATE}
             </div>
 
             <div className="space-y-1">

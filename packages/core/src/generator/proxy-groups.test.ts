@@ -141,6 +141,60 @@ describe("proxy group generator", () => {
     });
   });
 
+  it("can restrict business groups to proxy-group members for node-pool templates", () => {
+    const groups = generateProxyGroups({
+      nodes: [node("Airport A HK"), node("Airport B JP")],
+      enabledModules: ["select", "auto", "ai"],
+      ruleProviderBaseUrl: "https://rules.example.com",
+      testUrl: "https://probe.example.com/204",
+      testInterval: 120,
+      customProxyGroups: [
+        {
+          id: "pool-a",
+          name: "机场 A",
+          emoji: "",
+          memberSource: "filtered-nodes",
+          includeInGroupMembers: true,
+          groupType: "select",
+          advanced: { includeRegex: "Airport A" },
+        },
+        {
+          id: "pool-b",
+          name: "机场 B",
+          emoji: "",
+          memberSource: "filtered-nodes",
+          includeInGroupMembers: true,
+          groupType: "select",
+          advanced: { includeRegex: "Airport B" },
+        },
+      ],
+      proxyGroupAdvanced: {
+        ai: {
+          memberMode: "groups-only",
+          memberOrder: [
+            { kind: "custom", id: "pool-a" },
+            { kind: "custom", id: "pool-b" },
+            { kind: "direct" },
+          ],
+        },
+      },
+    });
+
+    expect(groups.find((group) => group.name === "机场 A")?.proxies).toEqual([
+      "DIRECT",
+      "REJECT",
+      "Airport A HK",
+    ]);
+    expect(groups.find((group) => group.name.includes("AI"))?.proxies).toEqual([
+      "机场 A",
+      "机场 B",
+      "DIRECT",
+      "🚀 节点选择",
+      "⚡ 自动选择",
+      "REJECT",
+    ]);
+  });
+
   it("defaults ordinary custom groups to node-only members without adding them to node select", () => {
     const groups = generateProxyGroups({
       nodes: [node("Node A"), node("Node B")],

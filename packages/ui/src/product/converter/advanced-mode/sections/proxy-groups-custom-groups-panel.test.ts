@@ -189,14 +189,14 @@ describe("ProxyGroupsCustomGroupsPanel", () => {
     };
   });
 
-  it("adds manual groups with a random reset emoji and rejects duplicates", () => {
+  it("adds node pools with a random reset emoji and rejects duplicates", () => {
     vi.spyOn(Math, "random").mockReturnValue(0);
     const { setters } = renderPanel({ 1: { emoji: "🧩", name: "New" }, 2: "Useful group" });
 
     const nameInput = mocks.captures.inputs.find((props: any) => props.placeholder === "自定义分组名称");
     nameInput.onChange({ target: { value: "Typed" } });
     expect(setters[1]).toHaveBeenCalledWith({ emoji: "🧩", name: "Typed" });
-    const descriptionInput = mocks.captures.inputs.find((props: any) => props.placeholder === "描述文本（默认: 自定义代理组）");
+    const descriptionInput = mocks.captures.inputs.find((props: any) => props.placeholder === "描述文本（默认: 节点池）");
     descriptionInput.onChange({ target: { value: "Next description" } });
     expect(setters[2]).toHaveBeenCalledWith("Next description");
 
@@ -207,6 +207,8 @@ describe("ProxyGroupsCustomGroupsPanel", () => {
       name: "🧩 New",
       emoji: "🧩",
       description: "Useful group",
+      memberSource: "filtered-nodes",
+      includeInGroupMembers: true,
       groupType: "select",
     });
     expect(mocks.interactions.proxyGroupAdded).toHaveBeenCalledWith({ groupType: "select" });
@@ -218,7 +220,7 @@ describe("ProxyGroupsCustomGroupsPanel", () => {
     expect(mocks.toast).toHaveBeenCalledWith(expect.objectContaining({ title: "代理组名称已存在，请换一个名称。", variant: "warning" }));
   });
 
-  it("ignores blank new group names and always adds as manual select", () => {
+  it("ignores blank new group names and always adds as node pool select", () => {
     renderPanel({ 1: { emoji: "🧩", name: "   " } });
     mocks.captures.buttons.find((props: any) => props.title === "新增").onClick();
     expect(mocks.store.addCustomProxyGroup).not.toHaveBeenCalled();
@@ -229,6 +231,8 @@ describe("ProxyGroupsCustomGroupsPanel", () => {
       name: "🧩 Balanced",
       emoji: "🧩",
       description: "LB group",
+      memberSource: "filtered-nodes",
+      includeInGroupMembers: true,
       groupType: "select",
     });
   });
@@ -406,6 +410,8 @@ describe("ProxyGroupsCustomGroupsPanel", () => {
       name: "🧩 Unique",
       emoji: "🧩",
       description: "",
+      memberSource: "filtered-nodes",
+      includeInGroupMembers: true,
       groupType: "select",
     });
   });

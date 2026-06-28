@@ -5,9 +5,13 @@ import {
   SOURCE_IDS_KEY,
   getNodeOriginName,
   getNodeSourceIds,
+  getNodeSourceKeys,
+  getNodeSourceTags,
   keepOnlyValidNodeSourceIds,
   makeUniqueName,
   normalizeNodeOriginName,
+  normalizeSourceKey,
+  withNodeSourceMetadata,
   withNodeSourceId,
   withUniqueNodeNames,
   withoutNodeSourceIds,
@@ -76,5 +80,33 @@ describe("node source state helpers", () => {
       [SOURCE_IDS_KEY]: ["source-b"],
     });
     expect(keepOnlyValidNodeSourceIds(withA, new Set(["source-b"]))).toBeNull();
+  });
+
+  it("tracks stable source keys and tags for reusable node-pool filters", () => {
+    const base = node("Node");
+    const withAirport = withNodeSourceMetadata(base, {
+      sourceId: " source-a ",
+      sourceKey: " Airport A ",
+      sourceTag: "机场 A",
+    });
+    const withDuplicate = withNodeSourceMetadata(withAirport, {
+      sourceId: "source-a",
+      sourceKey: "airport-a",
+      sourceTag: "机场 A",
+    });
+    const withSelfHosted = withNodeSourceMetadata(withAirport, {
+      sourceId: "source-b",
+      sourceKey: "Self Hosted",
+      sourceTag: "自建",
+    });
+
+    expect(normalizeSourceKey(" Airport A / HK ")).toBe("airport-a-hk");
+    expect(getNodeSourceIds(withAirport)).toEqual(["source-a"]);
+    expect(getNodeSourceKeys(withAirport)).toEqual(["airport-a"]);
+    expect(getNodeSourceTags(withAirport)).toEqual(["机场 A"]);
+    expect(withDuplicate).toEqual(withAirport);
+    expect(getNodeSourceIds(withSelfHosted)).toEqual(["source-a", "source-b"]);
+    expect(getNodeSourceKeys(withSelfHosted)).toEqual(["airport-a", "self-hosted"]);
+    expect(getNodeSourceTags(withSelfHosted)).toEqual(["机场 A", "自建"]);
   });
 });

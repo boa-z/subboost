@@ -151,7 +151,11 @@ export function createProxyGroupActions(
       if (!id || !isBuiltinProxyGroup(id)) return;
       setAndGenerateConfig((state) => {
         const prev = normalizeProxyGroupAdvancedConfig(state.proxyGroupAdvanced?.[id]);
-        const next = normalizeProxyGroupAdvancedConfig({ ...prev, ...(patch || {}) });
+        const nextRaw = { ...prev, ...(patch || {}) };
+        if (patch && Object.prototype.hasOwnProperty.call(patch, "memberMode") && patch.memberMode === undefined) {
+          delete nextRaw.memberMode;
+        }
+        const next = normalizeProxyGroupAdvancedConfig(nextRaw);
         return {
           proxyGroupAdvanced: {
             ...(state.proxyGroupAdvanced || {}),

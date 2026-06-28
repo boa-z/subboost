@@ -1,6 +1,6 @@
 import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { withNodeSourceId } from "@subboost/core/subscription/node-source-state";
+import { withNodeSourceMetadata } from "@subboost/core/subscription/node-source-state";
 import type { ParsedNode } from "@subboost/core/types/node";
 
 const mocks = vi.hoisted(() => ({
@@ -107,8 +107,8 @@ describe("ProxyGroupAdvancedPanel interactions", () => {
     mocks.stateSetters = [];
     mocks.store = {
       nodes: [
-        withNodeSourceId(node("US Source"), "source-a"),
-        withNodeSourceId(node("Japan Source"), "source-b"),
+        withNodeSourceMetadata(node("US Source"), { sourceId: "source-a", sourceKey: "source-a" }),
+        withNodeSourceMetadata(node("Japan Source"), { sourceId: "source-b", sourceKey: "primary" }),
         node("Extra Node"),
       ],
       sources: [
@@ -135,7 +135,7 @@ describe("ProxyGroupAdvancedPanel interactions", () => {
     const tree = ProxyGroupAdvancedPanel({
       target: { kind: "custom", id: "media", name: "Media" },
       advanced: {
-        sourceIds: ["source-a"],
+        sourceKeys: ["source-a"],
         regions: ["us"],
         includeRegex: "Source",
         excludeRegex: "Japan",
@@ -166,7 +166,7 @@ describe("ProxyGroupAdvancedPanel interactions", () => {
     excludeButton?.props.onClick();
     enableButton?.props.onClick();
 
-    expect(onChange).toHaveBeenCalledWith({ sourceIds: ["source-a", "source-b"] });
+    expect(onChange).toHaveBeenCalledWith({ sourceKeys: ["source-a", "primary"] });
     expect(onChange).toHaveBeenCalledWith({ regions: ["us", "hk"] });
     expect(onChange).toHaveBeenCalledWith({ includeRegex: "IEPL" });
     expect(onChange).toHaveBeenCalledWith({ excludeRegex: "Test" });

@@ -26,9 +26,14 @@ import type { ConfigActions, SubscriptionSource } from "./definitions";
 import {
   fetchUrlContentInBrowser,
   getNodeSourceIds,
+  getNodeSourceKeys,
+  getNodeSourceTags,
   ORIGIN_NAME_KEY,
   SOURCE_IDS_KEY,
-  withNodeSourceId,
+  SOURCE_KEYS_KEY,
+  SOURCE_TAGS_KEY,
+  normalizeSourceKey,
+  withNodeSourceMetadata,
   withoutNodeSourceIds,
   withUniqueNodeNames,
 } from "./definitions";
@@ -58,9 +63,40 @@ function toSubscriptionImportErrorInfo(
   });
 }
 
-function mergeNodeSourceIds(existing: ParsedNode, sourceIds: Set<string>): ParsedNode {
+function resolveSourceKey(source: SubscriptionSource): string {
+  return normalizeSourceKey(source.sourceKey) || normalizeSourceKey(source.tag) || normalizeSourceKey(source.id);
+}
+
+function mergeNodeSourceMetadata(existing: ParsedNode, incoming: ParsedNode): ParsedNode {
   const existingRecord = existing as unknown as Record<string, unknown>;
-  return { ...existingRecord, [SOURCE_IDS_KEY]: Array.from(sourceIds) } as unknown as ParsedNode;
+  const sourceIds = new Set(getNodeSourceIds(existing));
+  const sourceKeys = new Set(getNodeSourceKeys(existing));
+  const sourceTags = new Set(getNodeSourceTags(existing));
+  let changed = false;
+
+  for (const id of getNodeSourceIds(incoming)) {
+    if (sourceIds.has(id)) continue;
+    sourceIds.add(id);
+    changed = true;
+  }
+  for (const key of getNodeSourceKeys(incoming)) {
+    if (sourceKeys.has(key)) continue;
+    sourceKeys.add(key);
+    changed = true;
+  }
+  for (const tag of getNodeSourceTags(incoming)) {
+    if (sourceTags.has(tag)) continue;
+    sourceTags.add(tag);
+    changed = true;
+  }
+
+  if (!changed) return existing;
+  return {
+    ...existingRecord,
+    [SOURCE_IDS_KEY]: Array.from(sourceIds),
+    ...(sourceKeys.size > 0 ? { [SOURCE_KEYS_KEY]: Array.from(sourceKeys) } : {}),
+    ...(sourceTags.size > 0 ? { [SOURCE_TAGS_KEY]: Array.from(sourceTags) } : {}),
+  } as unknown as ParsedNode;
 }
 
 function filterDialerProxyGroupsByAvailableNames(
@@ -176,6 +212,7 @@ export function createSourceActions(set: SetState, get: GetState, setAndGenerate
         source.type === "url" && Boolean(lastParsedContent) && lastParsedContent !== currentSourceContent;
 
       const currentTag = typeof source.tag === "string" ? source.tag.trim() : "";
+      const currentSourceKey = resolveSourceKey(source);
       const currentNameTemplate = typeof source.nameTemplate === "string" ? source.nameTemplate.trim() : "";
       const lastTag = typeof source.lastParsedTag === "string" ? source.lastParsedTag.trim() : "";
       const lastNameTemplate = typeof source.lastParsedNameTemplate === "string" ? source.lastParsedNameTemplate.trim() : "";
@@ -283,6 +320,7 @@ export function createSourceActions(set: SetState, get: GetState, setAndGenerate
         setAndGenerateConfig((state) => {
           const merged = mergeParsedSourceNodes(state.nodes, parsedNodes, state.deletedNodeNames, {
             sourceId,
+            sourceKey: currentSourceKey,
             currentTag,
             currentNameTemplate,
             lastTag,
@@ -492,12 +530,19 @@ export function createSourceActions(set: SetState, get: GetState, setAndGenerate
           const result = prefetchedParseResult ?? parseSubscription(contentToParse);
           const resolvedSubscriptionUserInfo = resolveSubscriptionUserInfo(subscriptionUserInfo, result.nodes);
           const currentTag = typeof source.tag === "string" ? source.tag.trim() : "";
+          const currentSourceKey = resolveSourceKey(source);
           const currentNameTemplate = typeof source.nameTemplate === "string" ? source.nameTemplate.trim() : "";
           allNodes.push(
             ...prepareSourceParsedNodes(result.nodes, {
               currentTag,
               currentNameTemplate,
-            }).map((node) => withNodeSourceId(node, source.id))
+            }).map((node) =>
+              withNodeSourceMetadata(node, {
+                sourceId: source.id,
+                sourceKey: currentSourceKey,
+                sourceTag: currentTag,
+              })
+            )
           );
 
           if (result.errors.length > 0) {
@@ -558,16 +603,7 @@ export function createSourceActions(set: SetState, get: GetState, setAndGenerate
           continue;
         }
 
-        const mergedSourceIds = new Set(getNodeSourceIds(existing));
-        let changed = false;
-        for (const id of getNodeSourceIds(node)) {
-          if (mergedSourceIds.has(id)) continue;
-          mergedSourceIds.add(id);
-          changed = true;
-        }
-        if (!changed) continue;
-
-        uniqueNodeMap.set(key, mergeNodeSourceIds(existing, mergedSourceIds));
+        uniqueNodeMap.set(key, mergeNodeSourceMetadata(existing, node));
       }
       const uniqueNodes = Array.from(uniqueNodeMap.values());
 

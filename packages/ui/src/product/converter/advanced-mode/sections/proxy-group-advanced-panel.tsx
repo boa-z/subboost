@@ -10,7 +10,11 @@ import { PROXY_GROUP_MODULES, generateProxyGroups } from "@subboost/core/generat
 import { resolveProxyGroupModuleName } from "@subboost/core/proxy-group-name";
 import { REGION_PRESETS } from "@subboost/core/proxy-group-advanced";
 import { getProxyGroupMemberKey } from "@subboost/core/proxy-group-targets";
-import { getNodeSourceIds } from "@subboost/core/subscription/node-source-state";
+import {
+  getNodeSourceIds,
+  getNodeSourceKeys,
+  normalizeSourceKey,
+} from "@subboost/core/subscription/node-source-state";
 import { isSubscriptionInfoNodeName } from "@subboost/core/subscription/info-node-name";
 import type {
   CustomProxyGroup,
@@ -277,13 +281,19 @@ export function ProxyGroupAdvancedPanel({
 
   const sourceOptions = React.useMemo(() => {
     const sourceIdsInNodes = new Set<string>();
+    const sourceKeysInNodes = new Set<string>();
     for (const node of activeNodes) {
       for (const id of getNodeSourceIds(node)) sourceIdsInNodes.add(id);
+      for (const key of getNodeSourceKeys(node)) sourceKeysInNodes.add(key);
     }
     return sources
-      .filter((source) => sourceIdsInNodes.has(source.id))
+      .filter((source) => {
+        const key = normalizeSourceKey(source.sourceKey) || normalizeSourceKey(source.tag) || normalizeSourceKey(source.id);
+        return sourceIdsInNodes.has(source.id) || Boolean(key && sourceKeysInNodes.has(key));
+      })
       .map((source, index) => ({
         id: source.id,
+        key: normalizeSourceKey(source.sourceKey) || normalizeSourceKey(source.tag) || normalizeSourceKey(source.id),
         label: source.tag?.trim() || source.lastParsedTag?.trim() || `#${index + 1} ${source.type === "url" ? "订阅链接" : source.type === "yaml" ? "YAML 配置" : "节点链接"}`,
       }));
   }, [activeNodes, sources]);
@@ -303,10 +313,11 @@ export function ProxyGroupAdvancedPanel({
     [includedMembers, onChange],
   );
 
-  const sourceIds = normalizeList(advanced.sourceIds);
+  const sourceKeys = normalizeList(advanced.sourceKeys);
   const regions = normalizeList(advanced.regions);
   const extraRefs = normalizeList(advanced.extraMembers);
   const excludedRefs = normalizeList(advanced.excludedMembers);
+  const groupsOnly = advanced.memberMode === "groups-only";
 
   const disableMember = React.useCallback(
     (member: ResolvedMember) => {
@@ -332,6 +343,24 @@ export function ProxyGroupAdvancedPanel({
 
   return (
     <div className="border-t border-white/10">
+      <div className="flex flex-col gap-2 border-b border-white/10 p-3 md:flex-row md:items-center md:justify-between">
+        <label className="flex min-w-0 items-start gap-2 text-xs text-white/70">
+          <Input
+            type="checkbox"
+            checked={groupsOnly}
+            onChange={(event) =>
+              onChange({ memberMode: event.target.checked ? "groups-only" : undefined })
+            }
+            className="mt-0.5 h-3.5 w-3.5 accent-indigo-500"
+          />
+          <span className="min-w-0">
+            <span className="block font-medium text-white/75">仅显示代理组</span>
+            <span className="block text-[10px] text-white/35">
+              开启后默认隐藏具体节点，只保留代理组、DIRECT 和 REJECT；手动加入的节点仍会保留。
+            </span>
+          </span>
+        </label>
+      </div>
       <div className="grid gap-0 md:grid-cols-[1fr_1fr_1fr]">
         <div className="p-3">
           <div className={ADVANCED_PANEL_TITLE_CLASS}>导入源</div>
@@ -343,8 +372,12 @@ export function ProxyGroupAdvancedPanel({
                 <label key={source.id} className="flex min-w-0 items-center gap-2 text-[11px] text-white/65">
                   <input
                     type="checkbox"
-                    checked={sourceIds.includes(source.id)}
-                    onChange={() => onChange({ sourceIds: toggleValue(sourceIds, source.id) })}
+                    checked={sourceKeys.includes(source.key)}
+                    onChange={() =>
+                      onChange({
+                        sourceKeys: source.key ? toggleValue(sourceKeys, source.key) : sourceKeys,
+                      })
+                    }
                     className="h-3 w-3 accent-indigo-500"
                   />
                   <span className="truncate">{source.label}</span>
@@ -406,7 +439,7 @@ export function ProxyGroupAdvancedPanel({
 
       <div className="p-3">
         <div className={ADVANCED_PANEL_TITLE_ROW_CLASS}>
-          <div className="text-[11px] font-medium text-white/50">已启用节点</div>
+          <div className="text-[11px] font-medium text-white/50">已启用成员</div>
           <CountBadge>{includedMembers.length} 个</CountBadge>
         </div>
         {includedMembers.length === 0 ? (
@@ -457,7 +490,7 @@ export function ProxyGroupAdvancedPanel({
 
         <div className="mt-3">
           <div className={ADVANCED_PANEL_TITLE_ROW_CLASS}>
-            <div className="text-[11px] font-medium text-white/50">未启用节点</div>
+            <div className="text-[11px] font-medium text-white/50">未启用成员</div>
             <CountBadge>{excludedMembers.length} 个</CountBadge>
           </div>
           {excludedMembers.length === 0 ? (

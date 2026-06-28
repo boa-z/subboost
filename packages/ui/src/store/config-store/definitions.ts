@@ -20,9 +20,15 @@ import { tryNormalizeSubscriptionUrlInput } from "@subboost/core/subscription/ur
 import { getActiveProductApiAdapter } from "@subboost/ui/product/api-adapter";
 import {
   getNodeSourceIds,
+  getNodeSourceKeys,
+  getNodeSourceTags,
   makeUniqueName,
+  normalizeSourceKey,
   ORIGIN_NAME_KEY,
   SOURCE_IDS_KEY,
+  SOURCE_KEYS_KEY,
+  SOURCE_TAGS_KEY,
+  withNodeSourceMetadata,
   withNodeSourceId,
   withoutNodeSourceIds,
   withUniqueNodeNames,
@@ -58,6 +64,8 @@ export interface SubscriptionSource {
   lastParsedNameTemplate?: string;
   // 用于区分不同机场/来源的标签（不直接参与匹配，仅用于生成节点显示名）
   tag?: string;
+  // 稳定来源标识：用于节点池/分流组筛选，适合模板复用
+  sourceKey?: string;
   // 节点命名模板：支持 {tag} / {name}
   nameTemplate?: string;
   // URL 源使用 proxy-providers 模式：不在 SubBoost 内拉取/解析节点，仅在最终配置中写入 proxy-providers 供客户端拉取
@@ -371,7 +379,13 @@ export {
   withUniqueNodeNames,
   ORIGIN_NAME_KEY,
   SOURCE_IDS_KEY,
+  SOURCE_KEYS_KEY,
+  SOURCE_TAGS_KEY,
   getNodeSourceIds,
+  getNodeSourceKeys,
+  getNodeSourceTags,
+  normalizeSourceKey,
+  withNodeSourceMetadata,
   withNodeSourceId,
   withoutNodeSourceIds,
 };

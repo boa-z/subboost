@@ -193,7 +193,7 @@ export function ProxyGroupsCustomGroupsPanel({
           <Input
             value={newCustomGroupDescription}
             onChange={(event) => setNewCustomGroupDescription(event.target.value)}
-            placeholder="描述文本（默认: 自定义代理组）"
+            placeholder="描述文本（默认: 节点池）"
             className="h-7 min-w-0 border-white/10 bg-white/5 text-xs"
           />
         </div>
@@ -220,6 +220,8 @@ export function ProxyGroupsCustomGroupsPanel({
               name: full,
               emoji,
               description: newCustomGroupDescription.trim(),
+              memberSource: "filtered-nodes",
+              includeInGroupMembers: true,
               groupType: "select",
             });
             interactions.proxyGroupAdded?.({ groupType: "select" });
@@ -252,7 +254,8 @@ export function ProxyGroupsCustomGroupsPanel({
                 }) === group.name,
             );
             const totalRules = groupRuleSets.length + manualRules.length;
-            const description = group.description?.trim() || "自定义代理组";
+            const isNodePool = group.memberSource === "filtered-nodes";
+            const description = group.description?.trim() || (isNodePool ? "节点池" : "自定义代理组");
             const nodeCount = nodeCounts?.get(group.name) ?? 0;
 
             const toggleExpand = () => {
@@ -429,11 +432,18 @@ export function ProxyGroupsCustomGroupsPanel({
                   <ProxyGroupAdvancedPanel
                     target={{ kind: "custom", id: group.id, name: group.name }}
                     advanced={group.advanced || {}}
-                    onChange={(patch) =>
+                    onChange={(patch) => {
+                      const nextAdvanced = { ...(group.advanced || {}), ...patch };
+                      if (
+                        Object.prototype.hasOwnProperty.call(patch, "memberMode") &&
+                        patch.memberMode === undefined
+                      ) {
+                        delete nextAdvanced.memberMode;
+                      }
                       updateCustomProxyGroup(group.id, {
-                        advanced: { ...(group.advanced || {}), ...patch },
-                      })
-                    }
+                        advanced: nextAdvanced,
+                      });
+                    }}
                     rulesCount={count}
                     rulesContent={count > 0 ? content : null}
                   />

@@ -4,7 +4,7 @@ import {
   normalizeProxyGroupMemberRef,
   resolveProxyGroupMembers,
 } from "./proxy-group-advanced";
-import { withNodeSourceId } from "./subscription/node-source-state";
+import { withNodeSourceId, withNodeSourceMetadata } from "./subscription/node-source-state";
 import type { ParsedNode } from "@subboost/core/types/node";
 
 function node(name: string): ParsedNode {
@@ -34,7 +34,8 @@ describe("resolveProxyGroupMembers", () => {
 
     expect(
       normalizeProxyGroupAdvancedConfig({
-        sourceIds: [" source-a ", "source-a", "", 1],
+        memberMode: "groups-only",
+        sourceKeys: [" Airport A ", "airport-a", "", 1],
         regions: ["US", "other", "bad", "us"],
         includeRegex: " IEPL ",
         excludeRegex: " 测试 ",
@@ -45,7 +46,8 @@ describe("resolveProxyGroupMembers", () => {
         memberOrder: [{ kind: "node", name: "Node A" }, { kind: "node", name: "Node A" }],
       }),
     ).toEqual({
-      sourceIds: ["source-a"],
+      memberMode: "groups-only",
+      sourceKeys: ["airport-a"],
       regions: ["us", "other"],
       includeRegex: "IEPL",
       excludeRegex: "测试",
@@ -68,7 +70,8 @@ describe("resolveProxyGroupMembers", () => {
     expect(normalizeProxyGroupAdvancedConfig({ groupType: "unknown" })).toEqual({});
     expect(
       normalizeProxyGroupAdvancedConfig({
-        sourceIds: "source-a",
+        sourceKeys: "source-a",
+        memberMode: "bad",
         regions: "us",
         includeRegex: 1,
         excludeRegex: 2,
@@ -82,6 +85,29 @@ describe("resolveProxyGroupMembers", () => {
       groupType: "load-balance",
       strategy: "round-robin",
     });
+  });
+
+  it("supports groups-only member mode while preserving explicit extra nodes", () => {
+    const result = resolveProxyGroupMembers({
+      defaultProxyNames: ["Auto", "Custom", "Node A", "Node B", "DIRECT", "REJECT"],
+      availableProxyNames: ["Auto", "Custom", "Node A", "Node B", "DIRECT", "REJECT"],
+      nodes: [node("Node A"), node("Node B")],
+      moduleNames: { auto: "Auto" },
+      customProxyGroups: [{ id: "custom", name: "Custom", emoji: "", groupType: "select" }],
+      advanced: {
+        memberMode: "groups-only",
+        extraMembers: [{ kind: "node", name: "Node B" }],
+      },
+    });
+
+    expect(result.included.map((member) => member.key)).toEqual([
+      "module:auto",
+      "custom:custom",
+      "node:Node B",
+      "direct:DIRECT",
+      "reject:REJECT",
+    ]);
+    expect(result.excluded.map((member) => member.key)).toEqual(["node:Node A"]);
   });
 
   it("filters self custom references without dropping a node with the same name", () => {
@@ -127,13 +153,13 @@ describe("resolveProxyGroupMembers", () => {
         "REJECT",
       ],
       nodes: [
-        withNodeSourceId(node("US Source"), "source-a"),
-        withNodeSourceId(node("US Other"), "source-b"),
-        withNodeSourceId(node("Japan Source"), "source-a"),
-        withNodeSourceId(node("Mars Source"), "source-a"),
+        withNodeSourceMetadata(node("US Source"), { sourceId: "source-a", sourceKey: "airport-a" }),
+        withNodeSourceMetadata(node("US Other"), { sourceId: "source-b", sourceKey: "airport-b" }),
+        withNodeSourceMetadata(node("Japan Source"), { sourceId: "source-a", sourceKey: "airport-a" }),
+        withNodeSourceMetadata(node("Mars Source"), { sourceId: "source-a", sourceKey: "airport-a" }),
       ],
       advanced: {
-        sourceIds: ["source-a"],
+        sourceKeys: ["airport-a"],
         regions: ["us", "other"],
         includeRegex: "Source|DIRECT",
         excludeRegex: "Mars",
@@ -155,15 +181,39 @@ describe("resolveProxyGroupMembers", () => {
 
     const invalidRegexResult = resolveProxyGroupMembers({
       defaultProxyNames: ["US Source"],
-      nodes: [withNodeSourceId(node("US Source"), "source-a")],
+      nodes: [withNodeSourceMetadata(node("US Source"), { sourceId: "source-a", sourceKey: "airport-a" })],
       advanced: {
-        sourceIds: ["source-a"],
+        sourceKeys: ["airport-a"],
         includeRegex: "[",
         excludeRegex: "[",
       },
     });
 
     expect(invalidRegexResult.proxyNames).toEqual(["US Source"]);
+  });
+
+  it("filters nodes by stable source keys", () => {
+    const result = resolveProxyGroupMembers({
+      defaultProxyNames: ["Airport A HK", "Airport B JP", "DIRECT"],
+      nodes: [
+        withNodeSourceMetadata(node("Airport A HK"), {
+          sourceId: "source-a-runtime",
+          sourceKey: "airport-a",
+          sourceTag: "机场 A",
+        }),
+        withNodeSourceMetadata(node("Airport B JP"), {
+          sourceId: "source-b-runtime",
+          sourceKey: "airport-b",
+          sourceTag: "机场 B",
+        }),
+      ],
+      advanced: {
+        sourceKeys: ["airport-a"],
+      },
+    });
+
+    expect(result.proxyNames).toEqual(["Airport A HK", "DIRECT"]);
+    expect(result.excluded.map((member) => member.key)).toEqual(["node:Airport B JP"]);
   });
 
   it("resolves module/custom members, unavailable refs, and explicit ordering", () => {
@@ -318,9 +368,9 @@ describe("resolveProxyGroupMembers", () => {
 
     const noAvailableNames = resolveProxyGroupMembers({
       defaultProxyNames: ["REJECT", "Missing Node", "German Node", "Hidden Node", 1] as unknown as string[],
-      nodes: [withNodeSourceId(node("German Node"), "source-a"), node("Hidden Node")],
+      nodes: [withNodeSourceMetadata(node("German Node"), { sourceId: "source-a", sourceKey: "airport-a" }), node("Hidden Node")],
       advanced: {
-        sourceIds: ["source-b"],
+        sourceKeys: ["airport-b"],
         includeRegex: "Visible",
       },
     });
@@ -345,7 +395,7 @@ describe("resolveProxyGroupMembers", () => {
   it("normalizes sparse advanced values and resolves members from fallback references", () => {
     expect(
       normalizeProxyGroupAdvancedConfig({
-        sourceIds: ["", " source-a ", "source-b"],
+        sourceKeys: ["", " airport-a ", "airport-b"],
         regions: ["bad", "KR", "kr"],
         includeRegex: " ",
         excludeRegex: "",
@@ -370,7 +420,7 @@ describe("resolveProxyGroupMembers", () => {
         ],
       }),
     ).toEqual({
-      sourceIds: ["source-a", "source-b"],
+      sourceKeys: ["airport-a", "airport-b"],
       regions: ["kr"],
       groupType: "load-balance",
       strategy: "sticky-sessions",
@@ -390,14 +440,17 @@ describe("resolveProxyGroupMembers", () => {
     const result = resolveProxyGroupMembers({
       defaultProxyNames: ["Auto", "Custom", "DIRECT", "REJECT", "Korea Node", "Unknown"],
       availableProxyNames: ["Auto", "Custom", "DIRECT", "REJECT", "Korea Node", "Other Node"],
-      nodes: [withNodeSourceId(node("Korea Node"), "source-a"), withNodeSourceId(node("Other Node"), "source-b")],
+      nodes: [
+        withNodeSourceMetadata(node("Korea Node"), { sourceId: "source-a", sourceKey: "airport-a" }),
+        withNodeSourceMetadata(node("Other Node"), { sourceId: "source-b", sourceKey: "airport-b" }),
+      ],
       moduleNames: { auto: "Auto", blank: " " },
       customProxyGroups: [
         { id: "custom", name: "Custom", emoji: "", groupType: "select" },
         { id: "disabled", name: "Disabled", emoji: "", groupType: "select", enabled: false },
       ],
       advanced: {
-        sourceIds: ["source-a"],
+        sourceKeys: ["airport-a"],
         regions: ["kr"],
         extraMembers: [
           { kind: "node", name: "Other Node" },

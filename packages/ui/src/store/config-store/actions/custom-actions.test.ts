@@ -85,7 +85,7 @@ describe("custom config-store actions", () => {
     const groupId = getState().customProxyGroups[0].id;
     expect(groupId).toBe("custom-group-1767225600000");
     expect(getState().customProxyGroups[0]).toEqual(
-      expect.objectContaining({ includeInGroupMembers: false })
+      expect.objectContaining({ includeInGroupMembers: true })
     );
 
     actions.updateCustomProxyGroup(groupId, {
@@ -127,14 +127,14 @@ describe("custom config-store actions", () => {
       strategy: "round-robin",
       advanced: {
         includeRegex: "HK",
-        sourceIds: ["s1", "s1", ""],
+        sourceKeys: [" Airport A ", "airport-a", ""],
       },
     });
 
     const groupId = getState().customProxyGroups[1].id;
     expect(getState().customProxyGroups[1]).toEqual(
       expect.objectContaining({
-        advanced: expect.objectContaining({ includeRegex: "HK", sourceIds: ["s1"] }),
+        advanced: expect.objectContaining({ includeRegex: "HK", sourceKeys: ["airport-a"] }),
         description: "Fast nodes",
         enabled: false,
         includeInGroupMembers: false,

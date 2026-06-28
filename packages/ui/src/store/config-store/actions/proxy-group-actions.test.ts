@@ -122,7 +122,8 @@ describe("createProxyGroupActions", () => {
     const { actions, getState } = createHarness({
       proxyGroupAdvanced: {
         ai: {
-          sourceIds: ["source-1"],
+          memberMode: "groups-only",
+          sourceKeys: ["airport-old"],
           regions: ["hk"],
           includeRegex: "HK",
           excludedMembers: [{ kind: "node", name: "Old" }],
@@ -131,7 +132,7 @@ describe("createProxyGroupActions", () => {
     });
 
     actions.updateProxyGroupAdvanced(" ai ", {
-      sourceIds: [" source-2 ", "", "source-2"],
+      sourceKeys: [" Airport A ", "airport-a"],
       regions: "bad" as never,
       includeRegex: "Node",
       excludeRegex: "Test",
@@ -143,12 +144,16 @@ describe("createProxyGroupActions", () => {
     });
 
     expect(getState().proxyGroupAdvanced.ai).toMatchObject({
-      sourceIds: ["source-2"],
+      memberMode: "groups-only",
+      sourceKeys: ["airport-a"],
       includeRegex: "Node",
       excludeRegex: "Test",
       excludedMembers: [{ kind: "node", name: "Node A" }],
     });
     expect(getState().proxyGroupAdvanced.ai.regions).toBeUndefined();
+
+    actions.updateProxyGroupAdvanced("ai", { memberMode: undefined });
+    expect(getState().proxyGroupAdvanced.ai.memberMode).toBeUndefined();
 
     const beforeMissingUpdate = getState();
     actions.updateProxyGroupAdvanced("", { includeRegex: "Ignored" });

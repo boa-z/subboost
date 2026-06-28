@@ -72,7 +72,7 @@ describe("ProxyGroupAdvancedPanel", () => {
     mocks.inputs = [];
     mocks.store = {
       nodes: [
-        withNodeSourceId(node("US Source"), "source-a"),
+        { ...withNodeSourceId(node("US Source"), "source-a"), _sourceKeys: ["primary"] },
         withNodeSourceId(node("Japan Source"), "source-b"),
         node("剩余流量：100GB"),
       ],
@@ -102,7 +102,7 @@ describe("ProxyGroupAdvancedPanel", () => {
       React.createElement(ProxyGroupAdvancedPanel, {
         target: { kind: "custom", id: "media", name: "Media" },
         advanced: {
-          sourceIds: ["source-a"],
+          sourceKeys: ["primary"],
           regions: ["us"],
           includeRegex: "Source",
           excludeRegex: "Japan",
@@ -115,6 +115,7 @@ describe("ProxyGroupAdvancedPanel", () => {
     );
 
     expect(html).toContain("导入源");
+    expect(html).toContain("仅显示代理组");
     expect(html).toContain("Primary");
     expect(html).toContain("YAML Feed");
     expect(html).not.toContain("剩余流量");
@@ -122,10 +123,15 @@ describe("ProxyGroupAdvancedPanel", () => {
     expect(html).toContain("DIRECT");
     expect(html).toContain("rules-content");
     expect(html).toContain("还没有分流规则");
+    expect(html).toContain("已启用成员");
+    expect(html).toContain("未启用成员");
     expect(html).toContain("max-h-52 space-y-1.5 overflow-y-auto pr-1 custom-scrollbar");
-    expect(mocks.inputs.map((input) => input.value)).toEqual(["Source", "Japan"]);
+    expect(mocks.inputs.filter((input) => input.type !== "checkbox").map((input) => input.value)).toEqual([
+      "Source",
+      "Japan",
+    ]);
 
-    mocks.inputs[0].onChange({ target: { value: "IEPL" } });
+    mocks.inputs.find((input) => input.value === "Source").onChange({ target: { value: "IEPL" } });
     const excludeButton = mocks.buttons.find((button) => button.title === "排除");
     excludeButton.onClick();
 
@@ -135,6 +141,28 @@ describe("ProxyGroupAdvancedPanel", () => {
         excludedMembers: [expect.objectContaining({ kind: expect.any(String) })],
       }),
     );
+  });
+
+  it("toggles groups-only member mode from the advanced panel", () => {
+    const onChange = vi.fn();
+    renderToStaticMarkup(
+      React.createElement(ProxyGroupAdvancedPanel, {
+        target: { kind: "module", id: "ai", name: "AI" },
+        advanced: { memberMode: "groups-only" },
+        onChange,
+        rulesCount: 0,
+        rulesContent: null,
+      }),
+    );
+
+    const groupsOnlyInput = mocks.inputs.find((input) => input.type === "checkbox" && input.checked === true);
+    expect(groupsOnlyInput).toBeTruthy();
+
+    groupsOnlyInput.onChange({ target: { checked: false } });
+    expect(onChange).toHaveBeenCalledWith({ memberMode: undefined });
+
+    groupsOnlyInput.onChange({ target: { checked: true } });
+    expect(onChange).toHaveBeenCalledWith({ memberMode: "groups-only" });
   });
 
   it("renders empty states without generated members or source matches", () => {

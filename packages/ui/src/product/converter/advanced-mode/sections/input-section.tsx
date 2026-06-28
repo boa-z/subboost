@@ -76,6 +76,7 @@ export function InputSection({
     content: string;
     tag: string;
     nameTemplate: string;
+    sourceKey: string;
     useProxyProviders: boolean;
     userinfoUrl: string;
     userinfoUserAgent: string;
@@ -92,6 +93,7 @@ export function InputSection({
         id: expandedSource.id,
         content: expandedSource.content,
         tag: (expandedSource.tag ?? "").trim(),
+        sourceKey: (expandedSource.sourceKey ?? "").trim(),
         nameTemplate: (expandedSource.nameTemplate ?? "").trim(),
         useProxyProviders: Boolean(expandedSource.useProxyProviders),
         userinfoUrl: (expandedSource.userinfoUrl ?? "").trim(),
@@ -114,6 +116,7 @@ export function InputSection({
       const next = {
         content: expandedSource.content,
         tag: (expandedSource.tag ?? "").trim(),
+        sourceKey: (expandedSource.sourceKey ?? "").trim(),
         nameTemplate: (expandedSource.nameTemplate ?? "").trim(),
         useProxyProviders: Boolean(expandedSource.useProxyProviders),
         userinfoUrl: (expandedSource.userinfoUrl ?? "").trim(),
@@ -122,6 +125,7 @@ export function InputSection({
       const changed =
         next.content !== expandedSourceSnapshot.content ||
         next.tag !== expandedSourceSnapshot.tag ||
+        next.sourceKey !== expandedSourceSnapshot.sourceKey ||
         next.nameTemplate !== expandedSourceSnapshot.nameTemplate ||
         next.useProxyProviders !== expandedSourceSnapshot.useProxyProviders ||
         next.userinfoUrl !== expandedSourceSnapshot.userinfoUrl ||
@@ -192,6 +196,7 @@ export function InputSection({
 
         const needsReimport =
           Object.prototype.hasOwnProperty.call(patch, "tag") ||
+          Object.prototype.hasOwnProperty.call(patch, "sourceKey") ||
           Object.prototype.hasOwnProperty.call(patch, "nameTemplate") ||
           Object.prototype.hasOwnProperty.call(patch, "useProxyProviders") ||
           Object.prototype.hasOwnProperty.call(patch, "userinfoUrl") ||

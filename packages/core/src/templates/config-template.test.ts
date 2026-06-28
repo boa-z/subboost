@@ -167,7 +167,8 @@ describe("validateSubBoostTemplateConfig", () => {
         hiddenProxyGroups: undefined as never,
         proxyGroupAdvanced: {
           [moduleId]: {
-            sourceIds: ["source-a"],
+            memberMode: "groups-only",
+            sourceKeys: [" Airport A "],
           },
         },
         customRuleSets: undefined as never,
@@ -182,7 +183,10 @@ describe("validateSubBoostTemplateConfig", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.config.hiddenProxyGroups).toEqual([]);
-    expect(result.config.proxyGroupAdvanced?.[moduleId]).toEqual({ sourceIds: ["source-a"] });
+    expect(result.config.proxyGroupAdvanced?.[moduleId]).toEqual({
+      memberMode: "groups-only",
+      sourceKeys: ["airport-a"],
+    });
     expect(result.config.customRuleSets).toEqual([]);
     expect(result.config.builtinRuleEdits).toEqual({});
     expect(result.config.proxyGroupNameOverrides).toEqual({});

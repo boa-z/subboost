@@ -4,16 +4,22 @@ import { stripImportedNodeControlFields } from "./imported-node-controls";
 import {
   getNodeOriginName,
   getNodeSourceIds,
+  getNodeSourceKeys,
+  getNodeSourceTags,
   makeUniqueName,
   normalizeNodeOriginName,
+  normalizeSourceKey,
   ORIGIN_NAME_KEY,
   SOURCE_IDS_KEY,
+  SOURCE_KEYS_KEY,
+  SOURCE_TAGS_KEY,
   withoutNodeSourceIds,
 } from "./node-source-state";
 import type { ParsedNode } from "../types/node";
 
 export type SourceRefreshDescriptor = {
   sourceId: string;
+  sourceKey?: string;
   currentTag?: string;
   currentNameTemplate?: string;
   lastTag?: string;
@@ -89,6 +95,7 @@ export function mergeParsedSourceNodes(
   descriptor: SourceRefreshDescriptor
 ): MergeSourceNodesResult {
   const sourceId = descriptor.sourceId;
+  const sourceKey = normalizeSourceKey(descriptor.sourceKey);
   const lastTag = normalizeOptionalString(descriptor.lastTag);
   const lastNameTemplate = normalizeOptionalString(descriptor.lastNameTemplate);
   const treatAsNewSource = descriptor.treatAsNewSource === true;
@@ -275,6 +282,34 @@ export function mergeParsedSourceNodes(
     return out;
   };
 
+  const buildNextSourceKeys = (stored: ParsedNode): string[] => {
+    const out: string[] = [];
+    const seen = new Set<string>();
+    const push = (raw: string) => {
+      const key = normalizeSourceKey(raw);
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      out.push(key);
+    };
+    for (const key of getNodeSourceKeys(stored)) push(key);
+    push(sourceKey);
+    return out;
+  };
+
+  const buildNextSourceTags = (stored: ParsedNode): string[] => {
+    const out: string[] = [];
+    const seen = new Set<string>();
+    const push = (raw: string | undefined) => {
+      const tag = normalizeOptionalString(raw);
+      if (!tag || seen.has(tag)) return;
+      seen.add(tag);
+      out.push(tag);
+    };
+    for (const tag of getNodeSourceTags(stored)) push(tag);
+    push(descriptor.currentTag);
+    return out;
+  };
+
   const mergeNodeWithFresh = (params: {
     stored: ParsedNode;
     fresh: ParsedNode;
@@ -286,9 +321,16 @@ export function mergeParsedSourceNodes(
     const freshRecord = params.fresh as unknown as Record<string, unknown>;
     const preservedExtra = Object.fromEntries(
       Object.entries(storedRecord).filter(
-        ([key]) => key.startsWith("_") && key !== ORIGIN_NAME_KEY && key !== SOURCE_IDS_KEY
+        ([key]) =>
+          key.startsWith("_") &&
+          key !== ORIGIN_NAME_KEY &&
+          key !== SOURCE_IDS_KEY &&
+          key !== SOURCE_KEYS_KEY &&
+          key !== SOURCE_TAGS_KEY
       )
     );
+    const sourceKeys = buildNextSourceKeys(params.stored);
+    const sourceTags = buildNextSourceTags(params.stored);
 
     return ({
       ...freshRecord,
@@ -296,6 +338,8 @@ export function mergeParsedSourceNodes(
       name: params.desiredName,
       [ORIGIN_NAME_KEY]: params.originName,
       [SOURCE_IDS_KEY]: buildNextSourceIds(params.extraSourceIds),
+      ...(sourceKeys.length > 0 ? { [SOURCE_KEYS_KEY]: sourceKeys } : {}),
+      ...(sourceTags.length > 0 ? { [SOURCE_TAGS_KEY]: sourceTags } : {}),
     } as unknown as ParsedNode);
   };
 
@@ -410,6 +454,8 @@ export function mergeParsedSourceNodes(
         ...record,
         [ORIGIN_NAME_KEY]: originName,
         [SOURCE_IDS_KEY]: [sourceId],
+        ...(sourceKey ? { [SOURCE_KEYS_KEY]: [sourceKey] } : {}),
+        ...(descriptor.currentTag ? { [SOURCE_TAGS_KEY]: [descriptor.currentTag] } : {}),
       } as unknown as ParsedNode)
     );
   }

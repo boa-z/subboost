@@ -215,14 +215,14 @@ describe("validateSubBoostTemplateConfig custom groups", () => {
             includeInGroupMembers: false,
             groupType: "load-balance",
             advanced: {
-              sourceIds: ["source-a"],
+              sourceKeys: [" Airport A "],
             },
           },
         ],
       })
     );
     expect(validCustomGroup.ok && validCustomGroup.config.customProxyGroups[0]).toMatchObject({
-      advanced: { sourceIds: ["source-a"] },
+      advanced: { sourceKeys: ["airport-a"] },
       description: "Media group",
       strategy: "consistent-hashing",
     });

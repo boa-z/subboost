@@ -436,8 +436,8 @@ describe("ProxyGroupsCategories", () => {
 
     const advancedElement = card.renderAdvancedContent(React.createElement("div", null, "rules"), 2);
     expect(advancedElement.props.target).toEqual({ kind: "module", id: "auto", name: "Auto Override" });
-    advancedElement.props.onChange({ sourceIds: ["source-a"] });
-    expect(mocks.store.updateProxyGroupAdvanced).toHaveBeenCalledWith("auto", { sourceIds: ["source-a"] });
+    advancedElement.props.onChange({ sourceKeys: ["source-a"] });
+    expect(mocks.store.updateProxyGroupAdvanced).toHaveBeenCalledWith("auto", { sourceKeys: ["source-a"] });
   });
 
   it("renders custom category and disabled non-core module branches", async () => {

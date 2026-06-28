@@ -119,7 +119,7 @@ describe("ProxyGroupsCustomGroupsPanel card props", () => {
           emoji: "C",
           groupType: "select",
           enabled: false,
-          advanced: { sourceIds: ["old-source"] },
+          advanced: { sourceKeys: ["old-source"] },
         },
       ],
       customRuleSets: [
@@ -196,7 +196,7 @@ describe("ProxyGroupsCustomGroupsPanel card props", () => {
       strategy: undefined,
     });
     expect(mocks.store.updateCustomProxyGroup).toHaveBeenCalledWith("custom-1", {
-      advanced: { sourceIds: ["old-source"], regions: ["us"] },
+      advanced: { sourceKeys: ["old-source"], regions: ["us"] },
     });
     expect(advanced.props.rulesContent).not.toBeNull();
     expect(emptyAdvanced.props.rulesContent).toBeNull();
