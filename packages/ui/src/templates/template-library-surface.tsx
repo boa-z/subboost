@@ -14,7 +14,6 @@ import {
 } from "@subboost/ui/components/ui/dialog";
 import { Input } from "@subboost/ui/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@subboost/ui/components/ui/tabs";
-import { Textarea } from "@subboost/ui/components/ui/textarea";
 import { confirmDialog } from "@subboost/ui/components/ui/confirm-dialog";
 import { toast } from "@subboost/ui/components/ui/toaster";
 import { useUserStore } from "@subboost/ui/store/user-store";
@@ -29,6 +28,7 @@ import {
 } from "@subboost/ui/product/interactions";
 import type { TabValue, Template } from "@subboost/ui/templates/types";
 import { TemplateCard } from "@subboost/ui/templates/template-card";
+import { TemplateConfigEditor } from "@subboost/ui/templates/template-config-editor";
 import { TemplateUploadDialog } from "@subboost/ui/templates/template-upload-dialog";
 
 type TemplateDetail = {
@@ -134,6 +134,7 @@ function TemplateLibraryInner({ adapter }: Props) {
   const [editingTemplateName, setEditingTemplateName] = React.useState("");
   const [editingTemplateDescription, setEditingTemplateDescription] = React.useState("");
   const [editingYamlContent, setEditingYamlContent] = React.useState("");
+  const [editingConfig, setEditingConfig] = React.useState<SubBoostTemplateConfig | null>(null);
   const [isEditingTemplate, setIsEditingTemplate] = React.useState(false);
   const interactions = adapter.interactions;
 
@@ -335,10 +336,13 @@ function TemplateLibraryInner({ adapter }: Props) {
         : tpl.config && typeof tpl.config === "object"
           ? stringifySubBoostTemplateConfig(tpl.config as SubBoostTemplateConfig)
           : "";
+      const parsed = parseSubBoostTemplateYaml(yaml);
+      if (!parsed.ok) throw new Error(parsed.error);
       setEditingTemplateId(item.id);
       setEditingTemplateName(item.name);
       setEditingTemplateDescription(item.description);
-      setEditingYamlContent(yaml);
+      setEditingYamlContent(parsed.yaml);
+      setEditingConfig(parsed.config);
     } catch (error) {
       toast({ title: error instanceof Error ? error.message : "加载模板失败", variant: "destructive" });
     } finally {
@@ -363,12 +367,24 @@ function TemplateLibraryInner({ adapter }: Props) {
       });
       toast({ title: "模板已保存", variant: "success" });
       setEditingTemplateId(null);
+      setEditingConfig(null);
       await loadTemplates(activeTab);
     } catch (error) {
       toast({ title: error instanceof Error ? error.message : "保存失败", variant: "destructive" });
     } finally {
       setIsEditingTemplate(false);
     }
+  };
+
+  const handleSyncEditingYamlToVisual = () => {
+    const parsed = parseSubBoostTemplateYaml(editingYamlContent);
+    if (!parsed.ok) {
+      toast({ title: parsed.error, variant: "warning" });
+      return;
+    }
+    setEditingConfig(parsed.config);
+    setEditingYamlContent(parsed.yaml);
+    toast({ title: "YAML 已同步到图形化编辑器", variant: "success" });
   };
 
   const handleDeleteTemplate = async (templateId: string) => {
@@ -579,12 +595,19 @@ function TemplateLibraryInner({ adapter }: Props) {
         />
       )}
 
-      <Dialog open={Boolean(editingTemplateId)} onOpenChange={(open) => !open && setEditingTemplateId(null)}>
+      <Dialog
+        open={Boolean(editingTemplateId)}
+        onOpenChange={(open) => {
+          if (open) return;
+          setEditingTemplateId(null);
+          setEditingConfig(null);
+        }}
+      >
         <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
-            <DialogTitle>编辑 YAML 模板</DialogTitle>
+            <DialogTitle>编辑模板</DialogTitle>
             <DialogDescription>
-              模板以 SubBoost YAML 保存；保存前会校验并归一化，不包含节点。
+              使用图形化表单管理模板，YAML 仍作为底层格式保存。
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
@@ -600,14 +623,30 @@ function TemplateLibraryInner({ adapter }: Props) {
               placeholder="模板描述"
               maxLength={500}
             />
-            <Textarea
-              value={editingYamlContent}
-              onChange={(event) => setEditingYamlContent(event.target.value)}
-              className="min-h-[420px] font-mono text-xs"
-            />
+            {editingConfig && (
+              <div className="space-y-2">
+                <TemplateConfigEditor
+                  config={editingConfig}
+                  yaml={editingYamlContent}
+                  onConfigChange={setEditingConfig}
+                  onYamlChange={setEditingYamlContent}
+                />
+                <div className="flex justify-end">
+                  <Button type="button" variant="outline" size="sm" onClick={handleSyncEditingYamlToVisual} className="h-8 text-xs">
+                    同步 YAML 到图形化
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingTemplateId(null)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditingTemplateId(null);
+                setEditingConfig(null);
+              }}
+            >
               取消
             </Button>
             <Button onClick={handleSaveEditedTemplate} disabled={isEditingTemplate || !editingYamlContent.trim()}>
