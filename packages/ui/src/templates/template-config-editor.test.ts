@@ -74,7 +74,7 @@ function config(): SubBoostTemplateConfig {
   return {
     schema: "subboost-template-config/v1",
     template: "minimal",
-    enabledProxyGroups: ["select", "auto", "final"],
+    enabledProxyGroups: ["select", "auto", "ad", "final"],
     hiddenProxyGroups: [],
     customProxyGroups: [
       {
@@ -130,8 +130,8 @@ describe("TemplateConfigEditor", () => {
     );
 
     expect(html).toContain("基础设置");
-    expect(html).toContain("内置分流组");
-    expect(html).toContain("自定义分流组");
+    expect(html).toContain("分流目标组");
+    expect(html).toContain("预设规则模块");
     expect(html).toContain("机场 A");
     expect(html).toContain("分流规则");
     expect(html).toContain("DNS");
@@ -140,19 +140,27 @@ describe("TemplateConfigEditor", () => {
     expect(onConfigChange).toHaveBeenCalledWith(expect.objectContaining({ mixedPort: 7899 }));
     expect(onYamlChange).toHaveBeenCalledWith(expect.stringContaining("template: minimal"));
 
-    const addGroupButton = mocks.buttons.find((props) => props.title === "添加分流组");
+    const addGroupButton = mocks.buttons.find((props) => props.title === "添加目标组");
     addGroupButton.onClick();
     expect(onConfigChange).toHaveBeenCalledWith(expect.objectContaining({
       customProxyGroups: [expect.objectContaining({ name: "机场 A" }), expect.objectContaining({ name: "新分流组" })],
     }));
 
-    const searchInput = mocks.inputs.find((props) => props.placeholder === "搜索分流组");
+    const searchInput = mocks.inputs.find((props) => props.placeholder === "搜索目标组");
     searchInput.onChange({ target: { value: "机场" } });
 
     const nameInput = mocks.inputs.find((props) => props.value === "机场 A");
     nameInput.onChange({ target: { value: "机场 A 改" } });
     expect(onConfigChange).toHaveBeenCalledWith(expect.objectContaining({
       customProxyGroups: [expect.objectContaining({ name: "机场 A 改" })],
+    }));
+
+    const moduleTargetSelect = mocks.selects.find((props) => props.value === "🛑 广告拦截");
+    moduleTargetSelect.onValueChange("机场 A");
+    expect(onConfigChange).toHaveBeenCalledWith(expect.objectContaining({
+      builtinRuleEdits: expect.objectContaining({
+        "module:ad:category-ads-all": expect.objectContaining({ target: "机场 A" }),
+      }),
     }));
 
     mocks.textareas.at(-1).onChange({ target: { value: "template: full\n" } });

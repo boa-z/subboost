@@ -18,9 +18,11 @@ import { Textarea } from "@subboost/ui/components/ui/textarea";
 import { stringifySubBoostTemplateConfig } from "@subboost/core/templates/config-yaml";
 import { CUSTOM_RULE_TYPES, createCustomRuleId } from "@subboost/core/rules/custom-rule-utils";
 import { PROXY_GROUP_MODULES } from "@subboost/core/generator/proxy-groups";
+import { getModuleRuleOrderKey } from "@subboost/core/generator/module-rules";
 import {
   DEFAULT_LOAD_BALANCE_STRATEGY,
   PROXY_GROUP_GROUP_TYPES,
+  type BuiltinRuleEdit,
   type CustomProxyGroup,
   type CustomRule,
   type CustomRuleSet,
@@ -29,7 +31,7 @@ import {
 } from "@subboost/core/types/config";
 import type { SubBoostTemplateConfig } from "@subboost/core/types/template-config";
 
-type TemplateEditorSectionKey = "base" | "modules" | "customGroups" | "rules" | "dns";
+type TemplateEditorSectionKey = "base" | "targetGroups" | "modules" | "rules" | "dns";
 
 type Props = {
   config: SubBoostTemplateConfig;
@@ -85,12 +87,56 @@ function createRuleSet(target: string): CustomRuleSet {
   };
 }
 
-function getTargetOptions(config: SubBoostTemplateConfig): string[] {
-  const moduleNames = PROXY_GROUP_MODULES
-    .filter((module) => config.enabledProxyGroups.includes(module.id))
-    .map((module) => config.proxyGroupNameOverrides?.[module.id]?.trim() || module.name);
-  const customNames = config.customProxyGroups.map((group) => group.name).filter(Boolean);
-  return Array.from(new Set(["DIRECT", "REJECT", ...moduleNames, ...customNames]));
+function getRoutingTargetOptions(config: SubBoostTemplateConfig): string[] {
+  const customNames = config.customProxyGroups
+    .filter((group) => group.enabled !== false)
+    .map((group) => group.name.trim())
+    .filter(Boolean);
+  return Array.from(new Set(["DIRECT", "REJECT", ...customNames]));
+}
+
+function getModuleDisplayName(moduleId: string, config: SubBoostTemplateConfig): string {
+  const proxyModule = PROXY_GROUP_MODULES.find((item) => item.id === moduleId);
+  return config.proxyGroupNameOverrides?.[moduleId]?.trim() || proxyModule?.name || moduleId;
+}
+
+function getModuleRoutingTarget(moduleId: string, config: SubBoostTemplateConfig): string {
+  const proxyModule = PROXY_GROUP_MODULES.find((item) => item.id === moduleId);
+  if (!proxyModule) return getModuleDisplayName(moduleId, config);
+
+  const targets = new Set<string>();
+  for (const rule of proxyModule.rules) {
+    const target = config.builtinRuleEdits?.[getModuleRuleOrderKey(proxyModule.id, rule.id)]?.target;
+    if (typeof target === "string" && target.trim()) targets.add(target.trim());
+  }
+  if (targets.size === 1) return Array.from(targets)[0];
+  return getModuleDisplayName(moduleId, config);
+}
+
+function setModuleRoutingTarget(
+  config: SubBoostTemplateConfig,
+  moduleId: string,
+  target: string,
+): NonNullable<SubBoostTemplateConfig["builtinRuleEdits"]> {
+  const proxyModule = PROXY_GROUP_MODULES.find((item) => item.id === moduleId);
+  if (!proxyModule) return config.builtinRuleEdits ?? {};
+
+  const defaultTarget = getModuleDisplayName(moduleId, config);
+  const next = { ...(config.builtinRuleEdits ?? {}) };
+  const normalizedTarget = target.trim();
+
+  for (const rule of proxyModule.rules) {
+    const key = getModuleRuleOrderKey(proxyModule.id, rule.id);
+    const prev = next[key] as BuiltinRuleEdit | undefined;
+    if (!normalizedTarget || normalizedTarget === defaultTarget) {
+      if (prev?.enabled === false) next[key] = { enabled: false };
+      else delete next[key];
+    } else {
+      next[key] = { ...(prev ?? {}), target: normalizedTarget };
+    }
+  }
+
+  return next;
 }
 
 function updateArrayItem<T>(items: T[], index: number, patch: Partial<T>): T[] {
@@ -103,19 +149,30 @@ function removeArrayItem<T>(items: T[], index: number): T[] {
 
 export function TemplateConfigEditor({ config, yaml, onConfigChange, onYamlChange }: Props) {
   const [expandedSections, setExpandedSections] = React.useState<Set<TemplateEditorSectionKey>>(
-    new Set(["base", "modules", "customGroups", "rules", "dns"]),
+    new Set(["base", "targetGroups", "modules", "rules", "dns"]),
   );
   const [newRuleType, setNewRuleType] = React.useState<CustomRule["type"]>("DOMAIN");
   const [newRuleValue, setNewRuleValue] = React.useState("");
   const [newRuleTarget, setNewRuleTarget] = React.useState("DIRECT");
   const [customGroupSearch, setCustomGroupSearch] = React.useState("");
   const [selectedCustomGroupId, setSelectedCustomGroupId] = React.useState<string | null>(null);
+  const [moduleSearch, setModuleSearch] = React.useState("");
 
   const targetOptions = React.useMemo(() => {
-    const options = getTargetOptions(config);
+    const options = getRoutingTargetOptions(config);
     if (!options.includes(newRuleTarget)) options.push(newRuleTarget);
     return options;
   }, [config, newRuleTarget]);
+  const moduleTargetOptions = React.useMemo(() => getRoutingTargetOptions(config), [config]);
+  const visibleModules = React.useMemo(() => {
+    const keyword = moduleSearch.trim().toLowerCase();
+    if (!keyword) return PROXY_GROUP_MODULES;
+    return PROXY_GROUP_MODULES.filter((module) =>
+      [module.id, module.name, module.description]
+        .filter((value): value is string => typeof value === "string")
+        .some((value) => value.toLowerCase().includes(keyword)),
+    );
+  }, [moduleSearch]);
   const visibleCustomGroups = React.useMemo(() => {
     const keyword = customGroupSearch.trim().toLowerCase();
     if (!keyword) return config.customProxyGroups;
@@ -166,13 +223,6 @@ export function TemplateConfigEditor({ config, yaml, onConfigChange, onYamlChang
       enabledProxyGroups,
       hiddenProxyGroups: config.hiddenProxyGroups?.filter((id) => enabledSet.has(id)) ?? [],
     });
-  };
-
-  const toggleModuleVisible = (moduleId: string, visible: boolean) => {
-    const hidden = new Set(config.hiddenProxyGroups ?? []);
-    if (visible) hidden.delete(moduleId);
-    else hidden.add(moduleId);
-    patchConfig({ hiddenProxyGroups: Array.from(hidden).filter((id) => config.enabledProxyGroups.includes(id)) });
   };
 
   const updateCustomGroup = (index: number, patch: Partial<CustomProxyGroup>) => {
@@ -265,62 +315,11 @@ export function TemplateConfigEditor({ config, yaml, onConfigChange, onYamlChang
           </EditorSection>
 
           <EditorSection
-            icon={Network}
-            title="内置分流组"
-            badge={`${config.enabledProxyGroups.length} 已启用`}
-            expanded={expandedSections.has("modules")}
-            onToggle={() => toggleSection("modules")}
-          >
-            <div className="grid gap-1.5 md:grid-cols-2">
-              {PROXY_GROUP_MODULES.map((module) => {
-                const enabled = config.enabledProxyGroups.includes(module.id);
-                const hidden = config.hiddenProxyGroups?.includes(module.id) ?? false;
-                return (
-                  <div key={module.id} className="rounded-lg border border-white/10 bg-white/[0.04] p-2">
-                    <div className="flex items-center gap-2">
-                      <Switch checked={enabled} onCheckedChange={(checked) => toggleModule(module.id, checked)} />
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-xs font-medium text-white/85">{module.name}</div>
-                        <div className="text-[10px] text-white/40">{module.rules.length} 条规则</div>
-                      </div>
-                      {enabled && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => toggleModuleVisible(module.id, hidden)}
-                          className="h-7 px-2 text-[10px]"
-                        >
-                          {hidden ? "显示" : "隐藏"}
-                        </Button>
-                      )}
-                    </div>
-                    {enabled && (
-                      <Input
-                        value={config.proxyGroupNameOverrides?.[module.id] ?? ""}
-                        onChange={(event) => {
-                          const value = event.target.value;
-                          const next = { ...(config.proxyGroupNameOverrides ?? {}) };
-                          if (value.trim()) next[module.id] = value;
-                          else delete next[module.id];
-                          patchConfig({ proxyGroupNameOverrides: next });
-                        }}
-                        placeholder="自定义组名"
-                        className="mt-2 h-7 text-xs"
-                      />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </EditorSection>
-
-          <EditorSection
             icon={Globe2}
-            title="自定义分流组"
+            title="分流目标组"
             badge={`${config.customProxyGroups.length} 个`}
-            expanded={expandedSections.has("customGroups")}
-            onToggle={() => toggleSection("customGroups")}
+            expanded={expandedSections.has("targetGroups")}
+            onToggle={() => toggleSection("targetGroups")}
           >
             <div className="grid gap-2 lg:grid-cols-[minmax(16rem,0.9fr)_minmax(0,1.4fr)]">
               <div className="space-y-2">
@@ -330,7 +329,7 @@ export function TemplateConfigEditor({ config, yaml, onConfigChange, onYamlChang
                     <Input
                       value={customGroupSearch}
                       onChange={(event) => setCustomGroupSearch(event.target.value)}
-                      placeholder="搜索分流组"
+                      placeholder="搜索目标组"
                       className="h-8 pl-7 text-xs"
                     />
                   </div>
@@ -339,7 +338,7 @@ export function TemplateConfigEditor({ config, yaml, onConfigChange, onYamlChang
                     variant="secondary"
                     size="sm"
                     onClick={addCustomGroup}
-                    title="添加分流组"
+                    title="添加目标组"
                     className="h-8 gap-1 text-xs"
                   >
                     <Plus className="h-3.5 w-3.5" />
@@ -350,7 +349,7 @@ export function TemplateConfigEditor({ config, yaml, onConfigChange, onYamlChang
                 <div className="max-h-[23rem] space-y-1 overflow-y-auto pr-1 custom-scrollbar">
                   {visibleCustomGroups.length === 0 ? (
                     <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-8 text-center text-xs text-white/45">
-                      没有匹配的分流组
+                      没有匹配的目标组
                     </div>
                   ) : (
                     visibleCustomGroups.map((group) => {
@@ -397,6 +396,76 @@ export function TemplateConfigEditor({ config, yaml, onConfigChange, onYamlChang
                 onPatch={patchSelectedCustomGroup}
                 onDelete={() => selectedCustomGroup && removeCustomGroup(selectedCustomGroup.id)}
               />
+            </div>
+          </EditorSection>
+
+          <EditorSection
+            icon={Network}
+            title="预设规则模块"
+            badge={`${config.enabledProxyGroups.length} 已启用`}
+            expanded={expandedSections.has("modules")}
+            onToggle={() => toggleSection("modules")}
+          >
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <div className="relative min-w-[14rem] flex-1">
+                <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/30" />
+                <Input
+                  value={moduleSearch}
+                  onChange={(event) => setModuleSearch(event.target.value)}
+                  placeholder="搜索规则模块"
+                  className="h-8 pl-7 text-xs"
+                />
+              </div>
+              <Badge variant="outline" className="border-white/10 bg-white/5 text-white/55">
+                先建目标组，再把规则模块指向目标组
+              </Badge>
+            </div>
+            <div className="grid gap-1.5 md:grid-cols-2">
+              {visibleModules.map((module) => {
+                const enabled = config.enabledProxyGroups.includes(module.id);
+                const moduleTarget = getModuleRoutingTarget(module.id, config);
+                const targetOptionsForModule = moduleTargetOptions.includes(moduleTarget)
+                  ? moduleTargetOptions
+                  : [...moduleTargetOptions, moduleTarget];
+                return (
+                  <div key={module.id} className="rounded-lg border border-white/10 bg-white/[0.04] p-2">
+                    <div className="flex items-center gap-2">
+                      <Switch checked={enabled} onCheckedChange={(checked) => toggleModule(module.id, checked)} />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-xs font-medium text-white/85">{module.name}</div>
+                        <div className="text-[10px] text-white/40">{module.rules.length} 条规则</div>
+                      </div>
+                    </div>
+                    {enabled && (
+                      <div className="mt-2 grid gap-1.5 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                        <Field label="规则指向">
+                          <TargetSelect
+                            value={moduleTarget}
+                            options={targetOptionsForModule}
+                            onChange={(target) => patchConfig({
+                              builtinRuleEdits: setModuleRoutingTarget(config, module.id, target),
+                            })}
+                          />
+                        </Field>
+                        <Field label="模块名称覆盖">
+                          <Input
+                            value={config.proxyGroupNameOverrides?.[module.id] ?? ""}
+                            onChange={(event) => {
+                              const value = event.target.value;
+                              const next = { ...(config.proxyGroupNameOverrides ?? {}) };
+                              if (value.trim()) next[module.id] = value;
+                              else delete next[module.id];
+                              patchConfig({ proxyGroupNameOverrides: next });
+                            }}
+                            placeholder={module.name}
+                            className="h-8 text-xs"
+                          />
+                        </Field>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </EditorSection>
 
@@ -537,7 +606,7 @@ function CustomGroupDetail({
   if (!group) {
     return (
       <div className="flex min-h-[18rem] items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] px-4 text-center text-xs text-white/45">
-        选择左侧分流组后编辑详情
+        选择左侧目标组后编辑详情
       </div>
     );
   }
