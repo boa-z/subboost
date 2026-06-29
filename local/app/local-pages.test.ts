@@ -17,9 +17,11 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("lucide-react", () => ({
+  Download: () => React.createElement("span", null, "Download"),
   LogOut: () => React.createElement("span", null, "LogOut"),
   ServerCog: () => React.createElement("span", null, "ServerCog"),
   ShieldCheck: () => React.createElement("span", null, "ShieldCheck"),
+  Upload: () => React.createElement("span", null, "Upload"),
 }));
 
 vi.mock("@subboost/ui/components/ui/button", () => ({
@@ -232,6 +234,14 @@ describe("local app pages and adapters", () => {
     html = renderToStaticMarkup(React.createElement(SettingsPage));
     expect(html).toContain("admin");
     expect(html).toContain("2 / 9999");
+    expect(html).toContain("备份与恢复");
+    expect(html).toContain("导出当前账号已保存的订阅和自定义模板");
+    expect(mocks.buttons.find((button: any) => button.children?.includes?.("导出备份"))).toMatchObject({
+      disabled: false,
+    });
+    expect(mocks.buttons.find((button: any) => button.children?.includes?.("导入备份"))).toMatchObject({
+      disabled: false,
+    });
     const logoutButton = mocks.buttons.find((button: any) => button.variant === "destructive");
     expect(logoutButton).toMatchObject({ disabled: false });
     logoutButton.onClick();
